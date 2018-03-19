@@ -4,6 +4,7 @@ import numpy as np 							# numpy			-- python array operations
 import matplotlib.pyplot as plt 			# matplotlib 	-- plotting
 import csv									# csv 			-- reading from CSVs easily
 import yaml									# yaml 			-- reading/writing config files
+from sklearn.svm import SVC
 
 # Will load data in from the spiral dataset csv as store as x = [(x, y) ...] and y = [(c) ...]
 def load_data(data_file):
@@ -26,6 +27,7 @@ def read_config(cfg_file='config/spiral.yaml'):
 	print('[ERR] Failed to load config file \'{0}\''.format(cfg_file))
 	exit()
 
+# Plot data for a 2D coordinate vector (x) and class [0, 1] (y)
 def plot_data(x, y):
 	# Gather points within class a and b for two spiral problem
 	# TODO: Find more efficient way to do this
@@ -48,8 +50,9 @@ def plot_data(x, y):
 def train_network(x, y, cfg):
 	## Create network ##
 	# Alias config vars
-	neurons = cfg['two_spiral']['training']['neurons']
-	epochs  = cfg['two_spiral']['training']['epochs']
+	neurons       = cfg['two_spiral']['training']['nn']['neurons']
+	epochs        = cfg['two_spiral']['training']['nn']['epochs']
+	learning_rate = cfg['two_spiral']['training']['nn']['learning_rate']
 
 	# Create placeholders for tensors
 	x_ = tf.placeholder(tf.float32, [None, 2], name='x_placeholder')	# Input of (x, y)
@@ -84,7 +87,7 @@ def train_network(x, y, cfg):
 	cost = tf.reduce_mean(tf.losses.mean_squared_error(labels=y_, predictions=final_layer))
 
 	# Define optimiser and minimise error function task
-	optimiser = tf.train.GradientDescentOptimizer(learning_rate=cfg['two_spiral']['training']['learning_rate']).minimize(cost)
+	optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
 
 	## Train ##
 	# Create error logging storage
@@ -99,8 +102,7 @@ def train_network(x, y, cfg):
 		errors.append(error)
 
 	# Set size of figure and create first subplot
-	fig = plt.figure(figsize=(13, 5))
-	plt.subplot(1, 2, 1)
+	plt.subplot(2, 2, 1)
 
 	# Set plot settings
 	plt.plot(errors)
@@ -111,7 +113,7 @@ def train_network(x, y, cfg):
 
 	## Test ##
 	# Create second subplot
-	plt.subplot(1, 2, 2)
+	plt.subplot(2, 2, 2)
 
 	# Create test data
 	lim = cfg['two_spiral']['testing']['limits']
@@ -121,7 +123,7 @@ def train_network(x, y, cfg):
 	# Classify test data
 	classifications = np.round(sess.run(final_layer, feed_dict={x_ : coord}))
 
-	# Create class lists and calculate accuracy
+	# Create class lists
 	a = []; b = []
 	for i in range(0, len(classifications)):
 		if classifications[i] == [1]:
@@ -133,17 +135,61 @@ def train_network(x, y, cfg):
 	plt.scatter([d[0] for d in a], [d[1] for d in a], color=cfg['two_spiral']['plotting']['c1_colours'][1])
 	plt.scatter([d[0] for d in b], [d[1] for d in b], color=cfg['two_spiral']['plotting']['c2_colours'][1])
 
-## Main Program
+def train_svm(x, y, cfg):
+	## SVM
+	# Read in SVM parameters
+	C      = cfg['two_spiral']['training']['svm']['C']
+	kernel = cfg['two_spiral']['training']['svm']['kernel']
+	gamma  = cfg['two_spiral']['training']['svm']['gamma']
 
+	# Create SVM with parameters
+	svm = SVC(C=C, kernel=kernel, gamma=gamma)
+	svm.fit(x, np.ravel(y))
+
+	# Create test set
+	lim = cfg['two_spiral']['testing']['limits']
+	act_range = np.arange(lim[0], lim[1], 0.1)
+
+	# Perform testing on SVM
+	x_test = [(x, y) for x in act_range for y in act_range]
+	y_test = [svm.predict([sample]) for sample in x_test]
+
+	# Create class lists
+	a = []; b = []
+	for i in range(0, len(y_test)):
+		if y_test[i] == [1]:
+			a.append(x_test[i])
+		else:
+			b.append(x_test[i])
+
+	# Plot both classes
+	# plt.scatter([d[0] for d in a], [d[1] for d in a], color=cfg['two_spiral']['plotting']['c1_colours'][1])
+	# plt.scatter([d[0] for d in b], [d[1] for d in b], color=cfg['two_spiral']['plotting']['c2_colours'][1])
+
+	print('SVM model accuracy: {0:02f}%'.format(100*svm.score(x, np.ravel(y))))
+
+
+## Main Program
 # Read config file
 cfg = read_config()
 
 # Load two spiral data from dataset
 x, y = load_data(cfg['two_spiral']['dataset'])
 
-# Train network on dataset
-train_network(x, y, cfg)
+fig = plt.figure(figsize=(10, 10))
 
-# Create plot of training data and show all plotting
-plot_data(x, y)
-plt.show()
+## Neural Network
+if cfg['two_spiral']['training']['nn']['enabled']:
+	# Train network on dataset
+	train_network(x, y, cfg)
+
+	# Create plot of training data and show all plotting
+	plot_data(x, y)
+
+## SVM
+if cfg['two_spiral']['training']['svm']['enabled']:
+	# plt.subplot(2, 2, 4)
+	train_svm(x, y, cfg)
+	# plot_data(x, y)
+
+# plt.show()
