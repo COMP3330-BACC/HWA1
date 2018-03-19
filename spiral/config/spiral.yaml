@@ -1,2 +1,11 @@
 two_spiral:
   dataset: "datasets/spiralsdataset.csv"
+  training:
+    epochs: 8000
+    learning_rate: 0.8
+    neurons: 50
+  testing: 
+    limits: [-7, 7]
+  plotting:
+    c1_colours: ['#ff00f6', '#ffbafc']
+    c2_colours: ['#00e1ff', '#c9f8ff']
