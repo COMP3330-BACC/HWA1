@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt 			# matplotlib 	-- plotting
 import csv									# csv 			-- reading from CSVs easily
 import yaml									# yaml 			-- reading/writing config files
 
-# Will load data in form of
-#	data = [(x_0, y_0, class_0) ... (x_n, y_n, class_n)]
+# Will load data in form as specified by the dataset description 
+#	(https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.names) 
 def load_data(data_file):
 	with open(data_file, 'r') as csvfile:
 		csvreader = csv.reader(csvfile, delimiter=',')
@@ -26,7 +26,7 @@ def read_config(cfg_file='config/mushroom.yaml'):
 # Read config file
 cfg  = read_config()
 
-# Load two spiral data from dataset
+# Load mushroom data from dataset
 ts_data = load_data(cfg['mushroom']['dataset'])
 
 print('{0} ... {1}'.format(ts_data[0], ts_data[-1]))
