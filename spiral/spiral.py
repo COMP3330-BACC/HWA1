@@ -66,7 +66,7 @@ def train_network(x, y, cfg):
 	opt_model = {'accuracy' : 0}
 
 	# Iterate through models and choose the best one -- evolution!
-	while(opt_model['accuracy'] < acc_thresh):
+	while(opt_model['accuracy'] <= acc_thresh):
 		# Generate new random learning parameters
 		learning_rate = random.uniform(lr_lims[0], lr_lims[1])
 		neurons = random.randint(neuron_lims[0], neuron_lims[1])
@@ -78,24 +78,24 @@ def train_network(x, y, cfg):
 		first_layer         = tf.nn.sigmoid(tf.add((tf.matmul(x_, first_layer_weights)), first_layer_bias), name='first')
 
 		# Second layer
-		layer_1_weights = tf.Variable(tf.random_normal([neurons, neurons]), name='l1_weights')
-		layer_1_bias    = tf.Variable(tf.random_normal([neurons]), name='l1_bias')
-		layer_1         = tf.nn.sigmoid(tf.add((tf.matmul(first_layer, layer_1_weights)), layer_1_bias), name='l1')
+		l1_weights = tf.Variable(tf.random_normal([neurons, neurons]), name='l1_weights')
+		l1_bias    = tf.Variable(tf.random_normal([neurons]), name='l1_bias')
+		l1         = tf.nn.sigmoid(tf.add((tf.matmul(first_layer, l1_weights)), l1_bias), name='l1')
 
 		# Third layer
-		layer_2_weights = tf.Variable(tf.random_normal([neurons, neurons]), name='l2_weights')
-		layer_2_bias    = tf.Variable(tf.random_normal([neurons]), name='l2_bias')
-		layer_2         = tf.nn.sigmoid(tf.add((tf.matmul(layer_1, layer_2_weights)), layer_2_bias), name='l2')
+		l2_weights = tf.Variable(tf.random_normal([neurons, neurons]), name='l2_weights')
+		l2_bias    = tf.Variable(tf.random_normal([neurons]), name='l2_bias')
+		l2         = tf.nn.sigmoid(tf.add((tf.matmul(l1, l2_weights)), l2_bias), name='l2')
 
 		# Fourth layer
-		layer_3_weights = tf.Variable(tf.random_normal([neurons, neurons]), name='l3_weights')
-		layer_3_bias    = tf.Variable(tf.random_normal([neurons]), name='l3_bias')
-		layer_3         = tf.nn.sigmoid(tf.add((tf.matmul(layer_2, layer_3_weights)), layer_3_bias), name='l3')
+		l3_weights = tf.Variable(tf.random_normal([neurons, neurons]), name='l3_weights')
+		l3_bias    = tf.Variable(tf.random_normal([neurons]), name='l3_bias')
+		l3         = tf.nn.sigmoid(tf.add((tf.matmul(l2, l3_weights)), l3_bias), name='l3')
 
 		# Fifth layer
 		final_layer_weights = tf.Variable(tf.random_normal([neurons, 1]), name='final_weights')
 		final_layer_bias    = tf.Variable(tf.random_normal([1]), name='final_bias')
-		final_layer         = tf.nn.sigmoid(tf.add((tf.matmul(layer_3, final_layer_weights)), final_layer_bias), name='final')
+		final_layer         = tf.nn.sigmoid(tf.add((tf.matmul(l3, final_layer_weights)), final_layer_bias), name='final')
 
 		# Define error function
 		cost = tf.reduce_mean(tf.losses.mean_squared_error(labels=y_, predictions=final_layer))
@@ -140,14 +140,15 @@ def train_network(x, y, cfg):
 				'errors'        : errors,
 				'final_layer'   : final_layer
 			}
-			print('[ANN] Training parameters: epochs={0}, learning_rate={1:.2f}, neurons={2}'.format(opt_model['epochs'], opt_model['learning_rate'], opt_model['neurons']))
-			print('[ANN] Model accuracy: {0:.2f}%, Time elapsed: {1:.2f}s'.format(opt_model['accuracy']*100, opt_model['duration']))
+			print('[ANN] New model:')
+			print('[ANN] \tTraining parameters: epochs={0}, learning_rate={1:.2f}, neurons={2}'.format(opt_model['epochs'], opt_model['learning_rate'], opt_model['neurons']))
+			print('[ANN] \tModel accuracy: {0:.3f}%, Time elapsed: {1:.2f}s'.format(opt_model['accuracy']*100, opt_model['duration']))
 
 	# Set size of figure and create first subplot
 	plt.subplot(2, 2, 1)
 
 	# Set plot settings
-	plt.plot(opt_model['errors'])
+	plt.plot(opt_model['errors'][:epochs])
 	plt.title('Error vs Epoch')
 	plt.xlabel('Epoch')
 	plt.ylabel('Error')
@@ -162,9 +163,6 @@ def train_network(x, y, cfg):
 	act_range = np.arange(lim[0], lim[1], 0.1)
 	coord = [(x, y) for x in act_range for y in act_range]
 	
-	print('[ANN] Training parameters: epochs={0}, learning_rate={1}, neurons={2}'.format(opt_model['epochs'], opt_model['learning_rate'], opt_model['neurons']))
-	print('[ANN] Model accuracy: {0:.2f}%, Time elapsed: {1:.2f}s'.format(opt_model['accuracy']*100, opt_model['duration']))
-
 	# Classify test data
 	classifications = np.round(sess.run(opt_model['final_layer'], feed_dict={x_ : coord}))
 
