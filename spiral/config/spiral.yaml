@@ -2,17 +2,21 @@ two_spiral:
   dataset: "datasets/spiralsdataset.csv"
   training:
     nn:
-      enabled: False
-      epochs: 8000
-      learning_rate: 0.8
-      neurons: 50
+      enabled: True               # Enable use of neural networks
+      train: True                 # Enable training of NN
+      test: True                  # Enable testing of NN
+      neurons: [10, 100]          # Limits of neurons random generation (per layer)
+      epochs: [1000, 8000]        # Limits of epochs random generation (total)
+      learning_rate: [0.1, 5.0]   # Limits of learning rate random gen
+      iterations: 10              # Number of iterations (models) to be generated
+      accuracy_threshold: 0.9998  # Accuracy threshold for stopping model generation
     svm:
-      enabled: True
-      C: 0.5
-      kernel: 'sigmoid'
-      gamma: 0.001
+      enabled: True               # Enable use of SVM
+      C: 1.                       # C parameter
+      kernel: 'rbf'               # Kernel parameter
+      gamma: 1.5                  # Gamma parameter
   testing: 
-    limits: [-7, 7]
+    limits: [-7, 7]               # Size of test data
   plotting:
     c1_colours: ['#ff00f6', '#ffbafc']
     c2_colours: ['#00e1ff', '#c9f8ff']
