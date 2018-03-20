@@ -4,7 +4,10 @@ import numpy as np 							# numpy			-- python array operations
 import matplotlib.pyplot as plt 			# matplotlib 	-- plotting
 import csv									# csv 			-- reading from CSVs easily
 import yaml									# yaml 			-- reading/writing config files
-from sklearn.svm import SVC
+import time									# time 			-- performance measure
+import random
+from sklearn.svm import SVC					# sklearn		-- SVM utility
+from copy import copy
 
 # Will load data in from the spiral dataset csv as store as x = [(x, y) ...] and y = [(c) ...]
 def load_data(data_file):
@@ -28,7 +31,7 @@ def read_config(cfg_file='config/spiral.yaml'):
 	exit()
 
 # Plot data for a 2D coordinate vector (x) and class [0, 1] (y)
-def plot_data(x, y):
+def plot_data(x, y, train_type):
 	# Gather points within class a and b for two spiral problem
 	# TODO: Find more efficient way to do this
 	a = []; b = []
@@ -43,69 +46,108 @@ def plot_data(x, y):
 	plt.scatter([d[0] for d in b], [d[1] for d in b], color=cfg['two_spiral']['plotting']['c2_colours'][0])
 
 	# Format plot
-	plt.title('Two-Spiral Classification Problem')
+	plt.title('Two-Spiral Classification Problem ({0})'.format(train_type))
 	plt.xlabel('x')
 	plt.ylabel('y')
 
 def train_network(x, y, cfg):
 	## Create network ##
 	# Alias config vars
-	neurons       = cfg['two_spiral']['training']['nn']['neurons']
-	epochs        = cfg['two_spiral']['training']['nn']['epochs']
-	learning_rate = cfg['two_spiral']['training']['nn']['learning_rate']
+	neuron_lims = cfg['two_spiral']['training']['nn']['neurons']
+	epoch_lims  = cfg['two_spiral']['training']['nn']['epochs']
+	lr_lims     = cfg['two_spiral']['training']['nn']['learning_rate']
+	iterations  = cfg['two_spiral']['training']['nn']['iterations']
+	acc_thresh  = cfg['two_spiral']['training']['nn']['accuracy_threshold']
 
 	# Create placeholders for tensors
 	x_ = tf.placeholder(tf.float32, [None, 2], name='x_placeholder')	# Input of (x, y)
 	y_ = tf.placeholder(tf.float32, [None, 1], name='y_placeholder')  # Output of [0, 1]
 
-	# First layer
-	first_layer_weights = tf.Variable(tf.random_normal([2, neurons]), name='first_weights')
-	first_layer_bias    = tf.Variable(tf.random_normal([neurons]), name='first_bias')
-	first_layer         = tf.nn.sigmoid(tf.add((tf.matmul(x_, first_layer_weights)), first_layer_bias), name='first')
+	opt_model = {'accuracy' : 0}
 
-	# Second layer
-	layer_1_weights = tf.Variable(tf.random_normal([neurons, neurons]), name='l1_weights')
-	layer_1_bias    = tf.Variable(tf.random_normal([neurons]), name='l1_bias')
-	layer_1         = tf.nn.sigmoid(tf.add((tf.matmul(first_layer, layer_1_weights)), layer_1_bias), name='l1')
+	# Iterate through models and choose the best one -- evolution!
+	while(opt_model['accuracy'] < acc_thresh):
+		# Generate new random learning parameters
+		learning_rate = random.uniform(lr_lims[0], lr_lims[1])
+		neurons = random.randint(neuron_lims[0], neuron_lims[1])
+		epochs = random.randint(epoch_lims[0], epoch_lims[1])
 
-	# Third layer
-	layer_2_weights = tf.Variable(tf.random_normal([neurons, neurons]), name='l2_weights')
-	layer_2_bias    = tf.Variable(tf.random_normal([neurons]), name='l2_bias')
-	layer_2         = tf.nn.sigmoid(tf.add((tf.matmul(layer_1, layer_2_weights)), layer_2_bias), name='l2')
+		# First layer
+		first_layer_weights = tf.Variable(tf.random_normal([2, neurons]), name='first_weights')
+		first_layer_bias    = tf.Variable(tf.random_normal([neurons]), name='first_bias')
+		first_layer         = tf.nn.sigmoid(tf.add((tf.matmul(x_, first_layer_weights)), first_layer_bias), name='first')
 
-	# Fourth layer
-	layer_3_weights = tf.Variable(tf.random_normal([neurons, neurons]), name='l3_weights')
-	layer_3_bias    = tf.Variable(tf.random_normal([neurons]), name='l3_bias')
-	layer_3         = tf.nn.sigmoid(tf.add((tf.matmul(layer_2, layer_3_weights)), layer_3_bias), name='l3')
+		# Second layer
+		layer_1_weights = tf.Variable(tf.random_normal([neurons, neurons]), name='l1_weights')
+		layer_1_bias    = tf.Variable(tf.random_normal([neurons]), name='l1_bias')
+		layer_1         = tf.nn.sigmoid(tf.add((tf.matmul(first_layer, layer_1_weights)), layer_1_bias), name='l1')
 
-	# Fifth layer
-	final_layer_weights = tf.Variable(tf.random_normal([neurons, 1]), name='final_weights')
-	final_layer_bias    = tf.Variable(tf.random_normal([1]), name='final_bias')
-	final_layer         = tf.nn.sigmoid(tf.add((tf.matmul(layer_3, final_layer_weights)), final_layer_bias), name='final')
+		# Third layer
+		layer_2_weights = tf.Variable(tf.random_normal([neurons, neurons]), name='l2_weights')
+		layer_2_bias    = tf.Variable(tf.random_normal([neurons]), name='l2_bias')
+		layer_2         = tf.nn.sigmoid(tf.add((tf.matmul(layer_1, layer_2_weights)), layer_2_bias), name='l2')
 
-	# Define error function
-	cost = tf.reduce_mean(tf.losses.mean_squared_error(labels=y_, predictions=final_layer))
+		# Fourth layer
+		layer_3_weights = tf.Variable(tf.random_normal([neurons, neurons]), name='l3_weights')
+		layer_3_bias    = tf.Variable(tf.random_normal([neurons]), name='l3_bias')
+		layer_3         = tf.nn.sigmoid(tf.add((tf.matmul(layer_2, layer_3_weights)), layer_3_bias), name='l3')
 
-	# Define optimiser and minimise error function task
-	optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
+		# Fifth layer
+		final_layer_weights = tf.Variable(tf.random_normal([neurons, 1]), name='final_weights')
+		final_layer_bias    = tf.Variable(tf.random_normal([1]), name='final_bias')
+		final_layer         = tf.nn.sigmoid(tf.add((tf.matmul(layer_3, final_layer_weights)), final_layer_bias), name='final')
 
-	## Train ##
-	# Create error logging storage
-	errors = []
+		# Define error function
+		cost = tf.reduce_mean(tf.losses.mean_squared_error(labels=y_, predictions=final_layer))
 
-	# Create new TF session
-	sess = tf.InteractiveSession()
-	tf.global_variables_initializer().run()
+		# Define optimiser and minimise error function task
+		optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
 
-	for i in range(epochs):
-		_, error = sess.run([optimiser, cost], feed_dict={x_: x, y_: y})
-		errors.append(error)
+		## Train ##
+		# Create error logging storage
+		errors = []
+
+		# Start timing network creation and training
+		t_start = time.time()
+
+		# Create new TF session
+		sess = tf.InteractiveSession()
+		tf.global_variables_initializer().run()
+
+		for i in range(epochs):
+			_, error = sess.run([optimiser, cost], feed_dict={x_: x, y_: y})
+			errors.append(error)
+			# Stop model early if we're under an acceptable threshold
+			if error <= 1 - acc_thresh:
+				epochs = i
+				break
+
+		# End time measurement
+		t_elapsed = time.time() - t_start
+
+		# Calculate new accuracy
+		accuracy = 1 - error
+
+		# If we have a better model, store 
+		if(accuracy > opt_model['accuracy'] 
+			or accuracy >= opt_model['accuracy'] and t_elapsed < opt_model['duration']):
+			opt_model = {
+				'accuracy'      : accuracy,
+				'duration'      : t_elapsed,
+				'epochs'        : epochs,
+				'neurons'       : neurons,
+				'learning_rate' : learning_rate,
+				'errors'        : errors,
+				'final_layer'   : final_layer
+			}
+			print('[ANN] Training parameters: epochs={0}, learning_rate={1:.2f}, neurons={2}'.format(opt_model['epochs'], opt_model['learning_rate'], opt_model['neurons']))
+			print('[ANN] Model accuracy: {0:.2f}%, Time elapsed: {1:.2f}s'.format(opt_model['accuracy']*100, opt_model['duration']))
 
 	# Set size of figure and create first subplot
 	plt.subplot(2, 2, 1)
 
 	# Set plot settings
-	plt.plot(errors)
+	plt.plot(opt_model['errors'])
 	plt.title('Error vs Epoch')
 	plt.xlabel('Epoch')
 	plt.ylabel('Error')
@@ -120,8 +162,11 @@ def train_network(x, y, cfg):
 	act_range = np.arange(lim[0], lim[1], 0.1)
 	coord = [(x, y) for x in act_range for y in act_range]
 	
+	print('[ANN] Training parameters: epochs={0}, learning_rate={1}, neurons={2}'.format(opt_model['epochs'], opt_model['learning_rate'], opt_model['neurons']))
+	print('[ANN] Model accuracy: {0:.2f}%, Time elapsed: {1:.2f}s'.format(opt_model['accuracy']*100, opt_model['duration']))
+
 	# Classify test data
-	classifications = np.round(sess.run(final_layer, feed_dict={x_ : coord}))
+	classifications = np.round(sess.run(opt_model['final_layer'], feed_dict={x_ : coord}))
 
 	# Create class lists
 	a = []; b = []
@@ -135,6 +180,9 @@ def train_network(x, y, cfg):
 	plt.scatter([d[0] for d in a], [d[1] for d in a], color=cfg['two_spiral']['plotting']['c1_colours'][1])
 	plt.scatter([d[0] for d in b], [d[1] for d in b], color=cfg['two_spiral']['plotting']['c2_colours'][1])
 
+	# print(opt_model)
+	return opt_model
+
 def train_svm(x, y, cfg):
 	## SVM
 	# Read in SVM parameters
@@ -142,9 +190,19 @@ def train_svm(x, y, cfg):
 	kernel = cfg['two_spiral']['training']['svm']['kernel']
 	gamma  = cfg['two_spiral']['training']['svm']['gamma']
 
+	print('[SVM] Training parameters: C={0}, kernel={1}, gamma={2}'.format(C, kernel, gamma))
+
 	# Create SVM with parameters
 	svm = SVC(C=C, kernel=kernel, gamma=gamma)
-	svm.fit(x, np.ravel(y))
+	
+	# Start timing SVM creation and training
+	t_start = time.time()
+	
+	# Train SVM on data
+	svm.fit(np.array(x), np.ravel(y))
+
+	# End SVM timing
+	t_elapsed = time.time() - t_start
 
 	# Create test set
 	lim = cfg['two_spiral']['testing']['limits']
@@ -163,10 +221,10 @@ def train_svm(x, y, cfg):
 			b.append(x_test[i])
 
 	# Plot both classes
-	# plt.scatter([d[0] for d in a], [d[1] for d in a], color=cfg['two_spiral']['plotting']['c1_colours'][1])
-	# plt.scatter([d[0] for d in b], [d[1] for d in b], color=cfg['two_spiral']['plotting']['c2_colours'][1])
+	plt.scatter([d[0] for d in a], [d[1] for d in a], color=cfg['two_spiral']['plotting']['c1_colours'][1])
+	plt.scatter([d[0] for d in b], [d[1] for d in b], color=cfg['two_spiral']['plotting']['c2_colours'][1])
 
-	print('SVM model accuracy: {0:02f}%'.format(100*svm.score(x, np.ravel(y))))
+	print('[SVM] Model accuracy: {0:.2f}%, Time elapsed: {1:.5f}s'.format(100*svm.score(x, np.ravel(y)), t_elapsed))
 
 
 ## Main Program
@@ -176,7 +234,7 @@ cfg = read_config()
 # Load two spiral data from dataset
 x, y = load_data(cfg['two_spiral']['dataset'])
 
-fig = plt.figure(figsize=(10, 10))
+fig = plt.figure(figsize=(8, 8))
 
 ## Neural Network
 if cfg['two_spiral']['training']['nn']['enabled']:
@@ -184,12 +242,15 @@ if cfg['two_spiral']['training']['nn']['enabled']:
 	train_network(x, y, cfg)
 
 	# Create plot of training data and show all plotting
-	plot_data(x, y)
+	plot_data(x, y, 'ANN')
 
 ## SVM
 if cfg['two_spiral']['training']['svm']['enabled']:
-	# plt.subplot(2, 2, 4)
+	plt.subplot(2, 2, 4)
+	# Train SVM on dataset
 	train_svm(x, y, cfg)
-	# plot_data(x, y)
 
-# plt.show()
+	# Create plot of training data
+	plot_data(x, y, 'SVM')
+
+plt.show()
