@@ -1,2 +1,17 @@
 mushroom:
   dataset: "datasets/agaricus-lepiota.data"
+  training:
+    nn:
+      enabled: True               # Enable use of neural networks
+      train: True                 # Enable training of NN
+      test: True                  # Enable testing of NN
+      neurons: [10, 100]          # Limits of neurons random generation (per layer)
+      epochs: [1000, 8000]        # Limits of epochs random generation (total)
+      learning_rate: [0.1, 5.0]   # Limits of learning rate random gen
+      iterations: 10              # Number of iterations (models) to be generated
+      accuracy_threshold: 0.9     # Accuracy threshold for stopping model generation
+    svm:
+      enabled: True               # Enable use of SVM
+      C: 1.                       # C parameter
+      kernel: 'rbf'               # Kernel parameter
+      gamma: 1.5                  # Gamma parameter
