@@ -14,9 +14,10 @@ two_spiral:
       enabled: True               # Enable use of SVM
       C: 1.                       # C parameter
       kernel: 'rbf'               # Kernel parameter
-      gamma: 1.5                  # Gamma parameter
+      gamma: 1.                   # Gamma parameter
   testing: 
     limits: [-7, 7]               # Size of test data
   plotting:
-    c1_colours: ['#ff00f6', '#ffbafc']
-    c2_colours: ['#00e1ff', '#c9f8ff']
+    enabled: True
+    c1: ['#ffbafc', '#c9f8ff']
+    c2: ['#ff00f6', '#00e1ff']
