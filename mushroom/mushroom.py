@@ -1,10 +1,10 @@
-import os 									# os 			-- OS operations, read, write etc
-import tensorflow as tf 					# tensorflow 	-- machine learning
-import numpy as np 							# numpy			-- python array operations
-import matplotlib.pyplot as plt 			# matplotlib 	-- plotting
-import yaml									# yaml 			-- reading/writing config files
+import os 						 # os 			-- OS operations, read, write etc
+import tensorflow as tf 		 # tensorflow 	-- machine learning
+import numpy as np 				 # numpy		-- python array operations
+import matplotlib.pyplot as plt  # matplotlib 	-- plotting
+import yaml						 # yaml 		-- reading/writing config files
+import time						 # time 		-- performance measure
 import csv
-import time									# time 			-- performance measure
 import random
 
 # Shuffle data to randomize order of samples
@@ -49,6 +49,49 @@ def read_config(cfg_file='config/mushroom.yaml'):
 	print('[ERR] Failed to load config file \'{0}\''.format(cfg_file))
 	exit()
 
+def construct_network(inp_placeholder, inp_size, out_size, neurons):
+	# First layer
+	first_layer_weights = tf.Variable(tf.random_normal([inp_size, neurons]), name='first_weights')
+	first_layer_bias    = tf.Variable(tf.random_normal([neurons]),     name='first_bias')
+	first_layer         = tf.nn.sigmoid(tf.add((tf.matmul(inp_placeholder, first_layer_weights)), first_layer_bias), name='first')
+
+	# Second layer
+	l1_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l1_weights')
+	l1_bias             = tf.Variable(tf.random_normal([neurons]),     name='l1_bias')
+	l1                  = tf.nn.sigmoid(tf.add((tf.matmul(first_layer, l1_weights)), l1_bias), name='l1')
+
+	# Third layer
+	l2_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l2_weights')
+	l2_bias             = tf.Variable(tf.random_normal([neurons]),     name='l2_bias')
+	l2                  = tf.nn.sigmoid(tf.add((tf.matmul(l1, l2_weights)), l2_bias), name='l2')
+
+	# Fourth layer
+	l3_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l3_weights')
+	l3_bias             = tf.Variable(tf.random_normal([neurons]),     name='l3_bias')
+	l3                  = tf.nn.sigmoid(tf.add((tf.matmul(l2, l3_weights)), l3_bias), name='l3')
+
+	# Fifth layer
+	l4_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l4_weights')
+	l4_bias             = tf.Variable(tf.random_normal([neurons]),     name='l4_bias')
+	l4                  = tf.nn.sigmoid(tf.add((tf.matmul(l3, l4_weights)), l4_bias), name='l4')
+
+	# Fifth layer
+	l5_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l5_weights')
+	l5_bias             = tf.Variable(tf.random_normal([neurons]),     name='l5_bias')
+	l5                  = tf.nn.sigmoid(tf.add((tf.matmul(l4, l5_weights)), l5_bias), name='l5')
+
+	# Fifth layer
+	l6_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l6_weights')
+	l6_bias             = tf.Variable(tf.random_normal([neurons]),     name='l6_bias')
+	l6                  = tf.nn.sigmoid(tf.add((tf.matmul(l5, l6_weights)), l6_bias), name='l6')
+
+	# Sixth layer
+	final_layer_weights = tf.Variable(tf.random_normal([neurons, out_size]),  name='final_weights')
+	final_layer_bias    = tf.Variable(tf.random_normal([out_size]),      name='final_bias')
+	final_layer         = tf.nn.sigmoid(tf.add((tf.matmul(l6, final_layer_weights)), final_layer_bias), name='final')
+
+	return final_layer
+
 def train_network(x, y, cfg):
 	# Alias config vars
 	neuron_lims = cfg['mushroom']['training']['nn']['neurons']
@@ -69,46 +112,8 @@ def train_network(x, y, cfg):
 		neurons = random.randint(neuron_lims[0], neuron_lims[1])
 		epochs = random.randint(epoch_lims[0], epoch_lims[1])
 
-		# First layer
-		first_layer_weights = tf.Variable(tf.random_normal([22, neurons]), name='first_weights')
-		first_layer_bias    = tf.Variable(tf.random_normal([neurons]),     name='first_bias')
-		first_layer         = tf.nn.sigmoid(tf.add((tf.matmul(x_, first_layer_weights)), first_layer_bias), name='first')
-
-		# Second layer
-		l1_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l1_weights')
-		l1_bias             = tf.Variable(tf.random_normal([neurons]),     name='l1_bias')
-		l1                  = tf.nn.sigmoid(tf.add((tf.matmul(first_layer, l1_weights)), l1_bias), name='l1')
-
-		# Third layer
-		l2_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l2_weights')
-		l2_bias             = tf.Variable(tf.random_normal([neurons]),     name='l2_bias')
-		l2                  = tf.nn.sigmoid(tf.add((tf.matmul(l1, l2_weights)), l2_bias), name='l2')
-
-		# Fourth layer
-		l3_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l3_weights')
-		l3_bias             = tf.Variable(tf.random_normal([neurons]),     name='l3_bias')
-		l3                  = tf.nn.sigmoid(tf.add((tf.matmul(l2, l3_weights)), l3_bias), name='l3')
-
-		# Fifth layer
-		l4_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l4_weights')
-		l4_bias             = tf.Variable(tf.random_normal([neurons]),     name='l4_bias')
-		l4                  = tf.nn.sigmoid(tf.add((tf.matmul(l3, l4_weights)), l4_bias), name='l4')
-
-		# Fifth layer
-		l5_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l5_weights')
-		l5_bias             = tf.Variable(tf.random_normal([neurons]),     name='l5_bias')
-		l5                  = tf.nn.sigmoid(tf.add((tf.matmul(l4, l5_weights)), l5_bias), name='l5')
-
-		# Fifth layer
-		l6_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l6_weights')
-		l6_bias             = tf.Variable(tf.random_normal([neurons]),     name='l6_bias')
-		l6                  = tf.nn.sigmoid(tf.add((tf.matmul(l5, l6_weights)), l6_bias), name='l6')
-
-		# Sixth layer
-		final_layer_weights = tf.Variable(tf.random_normal([neurons, 1]),  name='final_weights')
-		final_layer_bias    = tf.Variable(tf.random_normal([1]),      name='final_bias')
-		final_layer         = tf.nn.sigmoid(tf.add((tf.matmul(l6, final_layer_weights)), final_layer_bias), name='final')
-
+		final_layer = construct_network(x_, 22, 1, neurons)
+		
 		# Define error function
 		cost = tf.reduce_mean(tf.losses.mean_squared_error(labels=y_, predictions=final_layer))
 
@@ -170,7 +175,7 @@ cfg  = read_config()
 x_train, x_test, y_train, y_test = load_data(cfg['mushroom']['dataset'])
 
 # Train network on our training data
-train_network(x_train, y_train, cfg)
+model = train_network(x_train, y_train, cfg)
 
 # Test network on our testing data
 test_network(x_test, y_test, cfg)
