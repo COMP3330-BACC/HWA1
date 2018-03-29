@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt  # matplotlib 	-- plotting
 import yaml						 # yaml 		-- reading/writing config files
 import time						 # time 		-- performance measure
 import csv
+import pandas as pd
+import pickle
 import random
 
 # Shuffle data to randomize order of samples
@@ -31,6 +33,10 @@ def load_data(data_file):
 		for row in csvreader:
 			x_conv = list(map(float, map(ord, row[1:])))
 			y_conv = [0. if row[0] == 'p' else 1.]
+			# Remove question marks
+			for u in x_conv:
+				if u == 63.:
+					u = -1.
 			x.append(x_conv)
 			y.append(y_conv)
 			# print(x_conv)
@@ -49,133 +55,180 @@ def read_config(cfg_file='config/mushroom.yaml'):
 	print('[ERR] Failed to load config file \'{0}\''.format(cfg_file))
 	exit()
 
-def construct_network(inp_placeholder, inp_size, out_size, neurons):
-	# First layer
-	first_layer_weights = tf.Variable(tf.random_normal([inp_size, neurons]), name='first_weights')
-	first_layer_bias    = tf.Variable(tf.random_normal([neurons]),     name='first_bias')
-	first_layer         = tf.nn.sigmoid(tf.add((tf.matmul(inp_placeholder, first_layer_weights)), first_layer_bias), name='first')
+def construct_network(inp, weights, biases, neurons):
+	fc1 = tf.nn.sigmoid(tf.add((tf.matmul(inp, weights['fc1'])), biases['fc1']), name='fc1')
+	fc2 = tf.nn.sigmoid(tf.add((tf.matmul(fc1, weights['fc2'])), biases['fc2']), name='fc2')
+	fc3 = tf.nn.sigmoid(tf.add((tf.matmul(fc2, weights['fc3'])), biases['fc3']), name='fc3')
+	fc4 = tf.nn.sigmoid(tf.add((tf.matmul(fc3, weights['fc4'])), biases['fc4']), name='fc4')
+	fc5 = tf.nn.sigmoid(tf.add((tf.matmul(fc4, weights['fc5'])), biases['fc5']), name='fc5')
+	fc6 = tf.nn.sigmoid(tf.add((tf.matmul(fc5, weights['fc6'])), biases['fc6']), name='fc6')
 
-	# Second layer
-	l1_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l1_weights')
-	l1_bias             = tf.Variable(tf.random_normal([neurons]),     name='l1_bias')
-	l1                  = tf.nn.sigmoid(tf.add((tf.matmul(first_layer, l1_weights)), l1_bias), name='l1')
+	return fc6
 
-	# Third layer
-	l2_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l2_weights')
-	l2_bias             = tf.Variable(tf.random_normal([neurons]),     name='l2_bias')
-	l2                  = tf.nn.sigmoid(tf.add((tf.matmul(l1, l2_weights)), l2_bias), name='l2')
+def save_model(sess, weights, biases, neurons, path):
+	with open(path, "wb") as pf:
+		# Create new dictionary containers for non-tf types
+		n_weights = {}; n_biases = {}
+		for key in weights.keys():
+			n_weights.update({key : sess.run(weights[key])})
+		for key in biases.keys():
+			n_biases.update({key : sess.run(biases[key])})
+		model = {'weights' : n_weights, 'biases' : n_biases, 'neurons' : neurons}
+		pickle.dump(model, pf)
+		return model
 
-	# Fourth layer
-	l3_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l3_weights')
-	l3_bias             = tf.Variable(tf.random_normal([neurons]),     name='l3_bias')
-	l3                  = tf.nn.sigmoid(tf.add((tf.matmul(l2, l3_weights)), l3_bias), name='l3')
+def load_model(path):
+	with open(path, "rb") as pf:
+		model = pickle.load(pf)
+		return model
 
-	# Fifth layer
-	l4_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l4_weights')
-	l4_bias             = tf.Variable(tf.random_normal([neurons]),     name='l4_bias')
-	l4                  = tf.nn.sigmoid(tf.add((tf.matmul(l3, l4_weights)), l4_bias), name='l4')
-
-	# Fifth layer
-	l5_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l5_weights')
-	l5_bias             = tf.Variable(tf.random_normal([neurons]),     name='l5_bias')
-	l5                  = tf.nn.sigmoid(tf.add((tf.matmul(l4, l5_weights)), l5_bias), name='l5')
-
-	# Fifth layer
-	l6_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l6_weights')
-	l6_bias             = tf.Variable(tf.random_normal([neurons]),     name='l6_bias')
-	l6                  = tf.nn.sigmoid(tf.add((tf.matmul(l5, l6_weights)), l6_bias), name='l6')
-
-	# Sixth layer
-	final_layer_weights = tf.Variable(tf.random_normal([neurons, out_size]),  name='final_weights')
-	final_layer_bias    = tf.Variable(tf.random_normal([out_size]),      name='final_bias')
-	final_layer         = tf.nn.sigmoid(tf.add((tf.matmul(l6, final_layer_weights)), final_layer_bias), name='final')
-
-	return final_layer
-
-def train_network(x, y, cfg):
+def train_network(sess, x, y, cfg):
 	# Alias config vars
-	neuron_lims = cfg['mushroom']['training']['nn']['neurons']
-	epoch_lims  = cfg['mushroom']['training']['nn']['epochs']
-	lr_lims     = cfg['mushroom']['training']['nn']['learning_rate']
-	iterations  = cfg['mushroom']['training']['nn']['iterations']
-	acc_thresh  = cfg['mushroom']['training']['nn']['accuracy_threshold']
+	neurons       = cfg['training']['nn']['neurons']
+	epochs        = cfg['training']['nn']['epochs']
+	learning_rate = cfg['training']['nn']['learning_rate']
+	iterations    = cfg['training']['nn']['iterations']
+	acc_thresh    = cfg['training']['nn']['accuracy_threshold']
+	model_dir     = cfg['training']['nn']['model_dir']
+
+	print('[ANN] \tTraining parameters: epochs={0}, learning_rate={1:.2f}, neurons={2}'.format(epochs, learning_rate, neurons))
 
 	# Create placeholders for tensors
 	x_ = tf.placeholder(tf.float32, [None, 22], name='x_placeholder')
 	y_ = tf.placeholder(tf.float32, [None, 1],  name='y_placeholder')
 
-	opt_model = {'accuracy' : 0}
+	weights = {
+		'fc1' : tf.Variable(tf.random_normal([22, neurons]), name='w_fc1'),
+		'fc2' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc2'),
+		'fc3' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc3'),
+		'fc4' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc4'),
+		'fc5' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc5'),
+		'fc6' : tf.Variable(tf.random_normal([neurons, 1]), name='w_fc6'),
+	}
 
-	while(opt_model['accuracy'] <= acc_thresh):
-		# Generate new random learning parameters
-		learning_rate = random.uniform(lr_lims[0], lr_lims[1])
-		neurons = random.randint(neuron_lims[0], neuron_lims[1])
-		epochs = random.randint(epoch_lims[0], epoch_lims[1])
+	biases = {
+		'fc1' : tf.Variable(tf.random_normal([neurons]), name='b_fc1'),
+		'fc2' : tf.Variable(tf.random_normal([neurons]), name='b_fc2'),
+		'fc3' : tf.Variable(tf.random_normal([neurons]), name='b_fc3'),
+		'fc4' : tf.Variable(tf.random_normal([neurons]), name='b_fc4'),
+		'fc5' : tf.Variable(tf.random_normal([neurons]), name='b_fc5'),
+		'fc6' : tf.Variable(tf.random_normal([1]), name='b_fc6'),
+	}
 
-		final_layer = construct_network(x_, 22, 1, neurons)
-		
-		# Define error function
-		cost = tf.reduce_mean(tf.losses.mean_squared_error(labels=y_, predictions=final_layer))
+	final_layer = construct_network(x_, weights, biases, neurons)
 
-		# Define optimiser and minimise error function task
-		optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
+	# Define error function
+	cost = tf.reduce_mean(tf.losses.mean_squared_error(labels=y_, predictions=final_layer))
 
-		## Train ##
-		# Create error logging storage
-		errors = []
+	# Define optimiser and minimise error function task
+	optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
 
-		t_start = time.time()
+	# Create error logging storage
+	errors = []
 
-		# Create new TF session
-		sess = tf.InteractiveSession()
-		tf.global_variables_initializer().run()
+	# Initialise global variables of the session
+	sess.run(tf.global_variables_initializer())
 
-		for i in range(epochs):
-			_, error = sess.run([optimiser, cost], feed_dict={x_: x, y_: y})
-			errors.append(error)
+	# Save model to file
+	model = save_model(sess, weights, biases, neurons, model_dir)
 
-		t_elapsed = time.time() - t_start
-
-		# Calculate new accuracy
-		accuracy = 1 - error
-
-		# If we have a better model, store 
-		if(accuracy > opt_model['accuracy'] 
-			or accuracy >= opt_model['accuracy'] and t_elapsed < opt_model['duration']):
-			opt_model = {
-				'accuracy'      : accuracy,
-				'duration'      : t_elapsed,
-				'epochs'        : epochs,
-				'neurons'       : neurons,
-				'learning_rate' : learning_rate,
-				'errors'        : errors,
-				'final_layer'   : final_layer
-			}
-			print('[ANN] New model:')
-			print('[ANN] \tTraining parameters: epochs={0}, learning_rate={1:.2f}, neurons={2}'.format(opt_model['epochs'], opt_model['learning_rate'], opt_model['neurons']))
-			print('[ANN] \tModel accuracy: {0:.3f}%, Time elapsed: {1:.2f}s'.format(opt_model['accuracy']*100, opt_model['duration']))
-
-	# Set plot settings
-	plt.plot(opt_model['errors'][:epochs])
+	# Setup our continous plot
 	plt.title('Error vs Epoch')
 	plt.xlabel('Epoch')
 	plt.ylabel('Error')
 	plt.grid()
+	plt.ion()
+	plt.show()
 
+	# Measure training time
+	t_start = time.time()
 
-def test_network(x, y, cfg):
-	print('tested')
+	for i in range(epochs):
+		_, error = sess.run([optimiser, cost], feed_dict={x_: x, y_: y})
+		# print('{0:6d} : {1:.3f}'.format(i, error))
+		errors.append(error)
+		if error <= 1 - acc_thresh:
+			break
+		
+		# Set plot settings
+		plt.plot(errors[:epochs], color='r')
+		plt.draw()
+		plt.pause(0.001)			
+
+	t_elapsed = time.time() - t_start
+
+	# Calculate new accuracy
+	accuracy = 1 - error
+
+	print('[ANN] \tModel accuracy: {0:.3f}%, Time elapsed: {1:.2f}s'.format(accuracy*100, t_elapsed))
+	return model
+
+def test_network(sess, model, x_test, y_test, cfg):
+	x_t = tf.placeholder(tf.float32, [None, 22], name='t_x_placeholder')
+	y_t = tf.placeholder(tf.float32, [None, 1],  name='t_y_placeholder')
+
+	final_layer = construct_network(x_t, model['weights'], model['biases'], model['neurons'])
+
+	# Start timing the length of time training takes
+	t_test = time.time()
+
+	# Classify test data
+	result = np.round(sess.run(final_layer, feed_dict={x_t : x_test, y_t : y_test}))
+
+	# Average out the test timing
+	t_avg_test = (time.time() - t_test) / float(len(y_test))
+
+	print('[ANN] Average time to test: {0:.2f}us'.format(1000000 * t_avg_test))
+	return result
+
+def analyse_results(y_test, results):
+	# Make variables for true pos, true neg, false pos, false neg
+	tp = 0; tn = 0; fp = 0; fn = 0
+	for i in range(0,len(results)):
+		if y_test[i] == results[i]:	# True
+			if y_test[i][0] == 1.:		# Positive
+				tp += 1
+			else:						# Negative
+				tn += 1
+		else:						# False
+			if results[i][0] == 1.:
+				fp += 1					# Positive
+			else:
+				fn += 1					# Negative
+
+	# Calculate confusion matrix
+	tpr = tp / (tp + fn)					# True Positive Rate
+	tnr = tn / (tn + fp)					# True Negative Rate
+	ppv = tp / (tp + fp)					# Sensitivity
+	npv = tn / (tn + fn)					# Specificity
+	acc = (tp + tn) / (tp + tn + fp + fn)	# Accuracy
+
+	certainty = tf.reduce_mean(tf.abs(tf.subtract(results[:, 0], results[:, 0])))
+
+	print('[ANN] Testing results: ')
+	print('[ANN]\tTrue Positive Rate (TPR): {0:.2f}'.format(tpr))
+	print('[ANN]\tTrue Negative Rate (TNR): {0:.2f}'.format(tnr))
+	print('[ANN]\tSensitivity:              {0:.2f}'.format(ppv))
+	print('[ANN]\tSpecificity:              {0:.2f}'.format(npv))
+	print('[ANN]\tAccuracy                  {0:.2f}'.format(acc))
+	print('[ANN]\tCertainty                 {0:.2f}'.format(certainty))
 
 ## Main Program
-
 # Read config file
 cfg  = read_config()
 
 # Load mushroom data from dataset
-x_train, x_test, y_train, y_test = load_data(cfg['mushroom']['dataset'])
+x_train, x_test, y_train, y_test = load_data(cfg['dataset'])
 
-# Train network on our training data
-model = train_network(x_train, y_train, cfg)
+with tf.Session() as sess:
+	if cfg['training']['nn']['train']:
+		# Train network on our training data
+		print('[ANN] Training network...')
+		model = train_network(sess, x_train, y_train, cfg)
+	else:
+		print('[ANN] Testing network...')
+		model = load_model(cfg['training']['nn']['model_dir'])
 
-# Test network on our testing data
-test_network(x_test, y_test, cfg)
+	# Test network on our testing data
+	results = test_network(sess, model, x_test, y_test, cfg)
+	analyse_results(y_test, results)
