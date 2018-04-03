@@ -93,6 +93,10 @@ def train_network(sess, x, y, cfg):
 
 	print('[ANN] \tTraining parameters: epochs={0}, learning_rate={1:.2f}, neurons={2}'.format(epochs, learning_rate, neurons))
 
+	# Create validation set
+	x_train, x_valid, y_train, y_valid = split_data(x, y, 0.9)
+	x_valid, y_valid = shuffle_data(x_valid, y_valid)
+
 	# Create placeholders for tensors
 	x_ = tf.placeholder(tf.float32, [None, 22], name='x_placeholder')
 	y_ = tf.placeholder(tf.float32, [None, 1],  name='y_placeholder')
@@ -124,7 +128,8 @@ def train_network(sess, x, y, cfg):
 	optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
 
 	# Create error logging storage
-	errors = []
+	train_errors = []
+	valid_errors = []
 
 	# Initialise global variables of the session
 	sess.run(tf.global_variables_initializer())
@@ -134,8 +139,11 @@ def train_network(sess, x, y, cfg):
 
 	# Setup our continous plot
 	plt.title('Error vs Epoch')
+	plt.plot(train_errors[:epochs], color='r', label='training')
+	plt.plot(valid_errors[:epochs], color='b', label='validation')
 	plt.xlabel('Epoch')
 	plt.ylabel('Error')
+	plt.legend()
 	plt.grid()
 	plt.ion()
 	plt.show()
@@ -144,14 +152,17 @@ def train_network(sess, x, y, cfg):
 	t_start = time.time()
 
 	for i in range(epochs):
-		_, error = sess.run([optimiser, cost], feed_dict={x_: x, y_: y})
-		# print('{0:6d} : {1:.3f}'.format(i, error))
-		errors.append(error)
-		if error <= 1 - acc_thresh:
+		_, train_error = sess.run([optimiser, cost], feed_dict={x_: x_train, y_: y_train})
+		_, valid_error = sess.run([optimiser, cost], feed_dict={x_: x_valid, y_: y_valid})
+		print('{0:.4f}'.format(valid_error - train_error))
+		train_errors.append(train_error)
+		valid_errors.append(valid_error)
+		if train_error <= 1 - acc_thresh:
 			break
 		
 		# Set plot settings
-		plt.plot(errors[:epochs], color='r')
+		plt.plot(train_errors[:epochs], color='r', label='training')
+		plt.plot(valid_errors[:epochs], color='b', label='validation')
 		plt.draw()
 		plt.pause(0.001)			
 
@@ -219,6 +230,8 @@ cfg  = read_config()
 
 # Load mushroom data from dataset
 x_train, x_test, y_train, y_test = load_data(cfg['dataset'])
+x_train, y_train = shuffle_data(x_train, y_train)
+x_test, y_test   = shuffle_data(x_test, y_test)
 
 with tf.Session() as sess:
 	if cfg['training']['nn']['train']:
