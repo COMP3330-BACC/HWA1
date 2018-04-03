@@ -1,17 +1,13 @@
 dataset: "datasets/agaricus-lepiota.data"
-training:
-  nn:
-    enabled: True               # Enable use of neural networks
-    train: True                 # Enable training of NN
-    test: True                  # Enable testing of NN
-    model_dir: "models/nn/nn.model"
-    neurons: 220                # Limits of neurons random generation (per layer)
-    epochs: 15000               # Limits of epochs random generation (total)
+nn:
+  enabled: True               # Enable use of neural networks
+  train: True                 # Enable training of NN, if disabled used model from <model_dir>
+  test: True                  # Enable testing of NN
+  model_dir: "models/nn/nn.model"
+  conf_mat_dir: "models/nn/confusion_mat.yaml"
+  parameters:
+    neurons: 150                # Limits of neurons random generation (per layer)
+    epochs: 500                 # Limits of epochs random generation (total)
     learning_rate: 0.01         # Limits of learning rate random gen
-    iterations: 10              # Number of iterations (models) to be generated
-    accuracy_threshold: 0.99    # Accuracy threshold for stopping model generation
-  svm:
-    enabled: True               # Enable use of SVM
-    C: 1.                       # C parameter
-    kernel: 'rbf'               # Kernel parameter
-    gamma: 1.5                  # Gamma parameter
+  error_threshold: 0.01         # Error threshold for stopping model generation
+  avg_factor: 5
