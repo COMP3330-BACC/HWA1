@@ -1,2 +1,5 @@
 # Ignore compiled python scripts
 *.pyc
+
+# Ignore our trained models
+*models*
