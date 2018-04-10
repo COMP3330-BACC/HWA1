@@ -1,11 +1,12 @@
 import pickle
 import random
 import yaml
+import string
 
 ### Network Utilities
 # Save model weights, biases and neurons per layer to file at <path>
 def save_model(sess, weights, biases, neurons, path):
-	with open(path, "wb") as pf:
+	with open(path + ".yaml", "wb") as pf:
 		# Create new dictionary containers for non-tf types
 		n_weights = {}; n_biases = {}
 		for key in weights.keys():
@@ -18,7 +19,7 @@ def save_model(sess, weights, biases, neurons, path):
 
 # Load model weights, biases and neurons per layer to file from <path>
 def load_model(path):
-	with open(path, "rb") as pf:
+	with open(path + ".yaml", "rb") as pf:
 		model = pickle.load(pf)
 		return model
 	print('ERR: No model found at \'{0}\', have you trained a model yet?'.format(path))
@@ -39,16 +40,43 @@ def analyse_results(y_test, results):
 			else:
 				fn += 1					# Negative
 
-	if tp + fn == 0 or tn + fp == 0 or tp + fp == 0 or tn + fn == 0:
-		print('ERR: Cannot calculate confusion matrix')
-		return None
+	## Calculate confusion matrix
+	# Store our errors in a list
+	err_list = []
+
+	# True Positive Rate
+	if tp + fn == 0:
+		err_list.append('Sum of true positives and false negatives is zero')
 	else:
-		# Calculate confusion matrix
-		tpr = tp / (tp + fn)					# True Positive Rate
-		tnr = tn / (tn + fp)					# True Negative Rate
-		ppv = tp / (tp + fp)					# Sensitivity
-		npv = tn / (tn + fn)					# Specificity
-		acc = (tp + tn) / (tp + tn + fp + fn)	# Accuracy
+		tpr = tp / (tp + fn)
+
+	# True Negative Rate
+	if tn + fp == 0:
+		err_list.append('Sum of true negatives and false positives is zero')
+	else:
+		tnr = tn / (tn + fp)
+
+	# Sensitivity
+	if tp + fp == 0:
+		err_list.append('Sum of true positives and false positives is zero')
+	else:
+		ppv = tp / (tp + fp)
+
+	# Specificity
+	if tn + fn == 0:
+		err_list.append('Sum of true negatives and false negatives is zero')
+	else:
+		npv = tn / (tn + fn)
+
+	# Accuracy
+	acc = (tp + tn) / (tp + tn + fp + fn)
+
+	if len(err_list) > 0:
+		print('ERR: Cannot calculate complete confusion matrix:')
+		for e in err_list:
+			print('\t-{0}'.format(e))
+	else:
+		
 
 		print('[ANN] Testing results: ')
 		print('[ANN]\tTrue Positive Rate (TPR): {0:.2f}'.format(tpr))
@@ -66,7 +94,7 @@ def analyse_results(y_test, results):
 
 # Store our results analysis
 def store_results(conf_mat, conf_file):
-	with open(conf_file, 'w') as yml:
+	with open(conf_file + ".yaml", 'w') as yml:
 		yaml.dump(conf_mat, yml)
 		return
 	print('[ERR] Failed to load config file \'{0}\''.format(conf_file))
