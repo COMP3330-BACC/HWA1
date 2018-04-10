@@ -8,17 +8,10 @@ import csv
 import pickle
 import random
 
-# Shuffle data to randomize order of samples
-def shuffle_data(x, y):
-	combined = list(zip(x, y))
-	random.shuffle(combined)
-	return zip(*combined)
-
-# Split data into training and testing datasets
-def split_data(x, y, train_ratio=0.8):
-	# Create pivot point within dataset
-	pivot = int(train_ratio * len(x))
-	return x[:pivot], x[pivot:], y[:pivot], y[pivot:]
+# TODO: Find less hacky way to include parent directories
+import sys
+sys.path.insert(0, '../../')
+import util 					# util 			-- our bag of helper functions!
 
 # Will load data in form as specified by the dataset description 
 #	(https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.names) 
@@ -40,17 +33,11 @@ def load_data(data_file):
 			# print(x_conv)
 			# print(y_conv)
 
-		x, y = shuffle_data(x, y)
-		x_train, x_test, y_train, y_test = split_data(x, y, 0.9)
+		x, y = util.shuffle_data(x, y)
+		x_train, x_test, y_train, y_test = util.split_data(x, y, 0.9)
 
 		return x_train, x_test, y_train, y_test
 	print('[ERR] Failed to load data from file \'{0}\''.format(data_file))
-	exit()
-
-def read_config(cfg_file='config/mushroom.yaml'):
-	with open(cfg_file, 'r') as yml:
-		return yaml.load(yml)
-	print('[ERR] Failed to load config file \'{0}\''.format(cfg_file))
 	exit()
 
 def construct_network(inp, weights, biases, neurons):
@@ -63,25 +50,6 @@ def construct_network(inp, weights, biases, neurons):
 	fc7 = tf.nn.sigmoid(tf.add((tf.matmul(fc5, weights['fc7'])), biases['fc7']), name='fc6')
 
 	return fc7
-
-# Save model weights, biases and neurons per layer to file at <path>
-def save_model(sess, weights, biases, neurons, path):
-	with open(path, "wb") as pf:
-		# Create new dictionary containers for non-tf types
-		n_weights = {}; n_biases = {}
-		for key in weights.keys():
-			n_weights.update({key : sess.run(weights[key])})
-		for key in biases.keys():
-			n_biases.update({key : sess.run(biases[key])})
-		model = {'weights' : n_weights, 'biases' : n_biases, 'neurons' : neurons}
-		pickle.dump(model, pf)
-		return model
-
-# Load model weights, biases and neurons per layer to file from <path>
-def load_model(path):
-	with open(path, "rb") as pf:
-		model = pickle.load(pf)
-		return model
 
 def train_network(sess, x, y, cfg):
 	t_cfg = cfg['nn']
@@ -97,8 +65,8 @@ def train_network(sess, x, y, cfg):
 	print('[ANN] \tTraining parameters: epochs={0}, learning_rate={1:.2f}, neurons={2}'.format(epochs, learning_rate, neurons))
 
 	# Create validation set
-	x_train, x_valid, y_train, y_valid = split_data(x, y, 0.95)
-	x_valid, y_valid = shuffle_data(x_valid, y_valid)
+	x_train, x_valid, y_train, y_valid = util.split_data(x, y, 0.95)
+	x_valid, y_valid = util.shuffle_data(x_valid, y_valid)
 
 	# Create placeholders for tensors
 	x_ = tf.placeholder(tf.float32, [None, 22], name='x_placeholder')
@@ -137,7 +105,7 @@ def train_network(sess, x, y, cfg):
 	sess.run(tf.global_variables_initializer())
 
 	# Save model to file
-	model = save_model(sess, weights, biases, neurons, model_dir)
+	model = util.save_model(sess, weights, biases, neurons, model_dir)
 
 	# Create error logging storage
 	train_errors = []
@@ -233,75 +201,29 @@ def test_network(sess, model, x_test, y_test, cfg):
 	print('[ANN]\tAverage time to test: {0:.2f}us'.format(1000000 * t_avg_test))
 	return result
 
-def analyse_results(y_test, results):
-	# Make variables for true pos, true neg, false pos, false neg
-	tp = 0; tn = 0; fp = 0; fn = 0
-	for i in range(0, len(results)):
-		if y_test[i] == results[i]:	# True
-			if y_test[i][0] == 1.:		# Positive
-				tp += 1
-			else:						# Negative
-				tn += 1
-		else:						# False
-			if results[i][0] == 1.:
-				fp += 1					# Positive
-			else:
-				fn += 1					# Negative
-
-	if tp + fn == 0 or tn + fp == 0 or tp + fp == 0 or tn + fn == 0:
-		print('ERR: Cannot calculate confusion matrix')
-		return None
-	else:
-		# Calculate confusion matrix
-		tpr = tp / (tp + fn)					# True Positive Rate
-		tnr = tn / (tn + fp)					# True Negative Rate
-		ppv = tp / (tp + fp)					# Sensitivity
-		npv = tn / (tn + fn)					# Specificity
-		acc = (tp + tn) / (tp + tn + fp + fn)	# Accuracy
-		certainty = tf.reduce_mean(tf.abs(tf.subtract(results[:, 0], results[:, 0])))
-		print('[ANN] Testing results: ')
-		print('[ANN]\tTrue Positive Rate (TPR): {0:.2f}'.format(tpr))
-		print('[ANN]\tTrue Negative Rate (TNR): {0:.2f}'.format(tnr))
-		print('[ANN]\tSensitivity:              {0:.2f}'.format(ppv))
-		print('[ANN]\tSpecificity:              {0:.2f}'.format(npv))
-		print('[ANN]\tAccuracy                  {0:.2f}'.format(acc))
-		return {
-			'tpr' : tpr,
-			'tnr' : tnr,
-			'ppv' : ppv,
-			'npv' : npv,
-			'acc' : acc
-		}
-
-
-	# print('[ANN]\tCertainty                 {0:.2f}'.format(certainty))
-
-
-def store_results(conf_mat, conf_file):
-	with open(conf_file, 'w') as yml:
-		yaml.dump(conf_mat, yml)
-		return
-	print('[ERR] Failed to load config file \'{0}\''.format(conf_file))
-	exit()
 ## Main Program
-# Read config file
-cfg  = read_config()
+def main():
+	# Read config file
+	cfg  = util.read_config('config/mushroom.yaml')
 
-# Load mushroom data from dataset
-x_train, x_test, y_train, y_test = load_data(cfg['dataset'])
-x_train, y_train = shuffle_data(x_train, y_train)
-x_test, y_test   = shuffle_data(x_test, y_test)
+	# Load mushroom data from dataset
+	x_train, x_test, y_train, y_test = load_data(cfg['dataset'])
+	x_train, y_train = util.shuffle_data(x_train, y_train)
+	x_test, y_test   = util.shuffle_data(x_test, y_test)
 
-with tf.Session() as sess:
-	if cfg['nn']['train']:
-		# Train network on our training data
-		print('[ANN] Training network...')
-		model = train_network(sess, x_train, y_train, cfg)
-	else:
-		print('[ANN] Testing network...')
-		model = load_model(cfg['training']['nn']['model_dir'])
+	with tf.Session() as sess:
+		if cfg['nn']['train']:
+			# Train network on our training data
+			print('[ANN] Training network...')
+			model = train_network(sess, x_train, y_train, cfg)
+		else:
+			print('[ANN] Testing network...')
+			model = util.load_model(cfg['training']['nn']['model_dir'])
 
-	# Test network on our testing data
-	results = test_network(sess, model, x_test, y_test, cfg)
-	conf_mat = analyse_results(y_test, results)
-	store_results(conf_mat, cfg['nn']['conf_mat_dir'])
+		# Test network on our testing data
+		results = test_network(sess, model, x_test, y_test, cfg)
+		conf_mat = util.analyse_results(y_test, results)
+		util.store_results(conf_mat, cfg['nn']['conf_mat_dir'])
+
+if __name__ == '__main__':
+	main()

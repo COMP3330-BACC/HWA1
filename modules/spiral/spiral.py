@@ -8,12 +8,10 @@ import time						# time 			-- performance measure
 import random
 from sklearn.svm import SVC		# sklearn		-- SVM utility
 
-# Reads config parameters from file to store in local config variable
-def read_config(cfg_file='config/spiral.yaml'):
-	with open(cfg_file, 'r') as yml:
-		return yaml.load(yml)
-	print('[ERR] Failed to load config file \'{0}\''.format(cfg_file))
-	exit()
+# TODO: Find less hacky way to include parent directories
+import sys
+sys.path.insert(0, '../../')
+import util 					# util 			-- our bag of helper functions!
 
 # Will load data in from the spiral dataset csv as store as x = [(x, y) ...] and y = [(c) ...]
 def load_data(data_file):
@@ -49,7 +47,7 @@ def plot_data(x, y, train_type, c):
 	plt.xlabel('x')
 	plt.ylabel('y')
 
-# ANN
+### ANN
 def construct_network(inp, inp_size, out_size, neurons):
 	# First layer
 	first_layer_weights = tf.Variable(tf.random_normal([inp_size, neurons]), name='first_weights')
@@ -199,9 +197,8 @@ def train_network(x, y, cfg):
 	# print(opt_model)
 	return opt_model
 
-## SVM
+### SVM
 def train_svm(x, y, cfg):
-	## SVM
 	# Read in SVM parameters
 	C      = cfg['two_spiral']['training']['svm']['C']
 	kernel = cfg['two_spiral']['training']['svm']['kernel']
@@ -240,7 +237,7 @@ def test_svm(svm, x, cfg):
 
 def main():
 	# Read config file
-	cfg = read_config()
+	cfg = util.read_config('config/spiral.yaml')
 
 	# Load from config
 	lim     = cfg['two_spiral']['testing']['limits']
@@ -287,4 +284,5 @@ def main():
 
 	plt.show()
 
-main()
+if __name__ == '__main__':
+	main()
