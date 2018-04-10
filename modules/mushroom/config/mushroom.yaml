@@ -3,8 +3,9 @@ nn:
   enabled: True               # Enable use of neural networks
   train: True                 # Enable training of NN, if disabled used model from <model_dir>
   test: True                  # Enable testing of NN
-  model_dir: "models/nn/nn.model"
-  conf_mat_dir: "models/nn/confusion_mat.yaml"
+  model_dir: "models/nn/"
+  model_name: ""
+  save_epoch: 100
   parameters:
     neurons: 150                # Limits of neurons random generation (per layer)
     epochs: 500                 # Limits of epochs random generation (total)

@@ -2,11 +2,10 @@ import os 						 # os 			-- OS operations, read, write etc
 import tensorflow as tf 		 # tensorflow 	-- machine learning
 import numpy as np 				 # numpy		-- python array operations
 import matplotlib.pyplot as plt  # matplotlib 	-- plotting
-import yaml						 # yaml 		-- reading/writing config files
 import time						 # time 		-- performance measure
 import csv
-import pickle
 import random
+import string
 
 # TODO: Find less hacky way to include parent directories
 import sys
@@ -52,15 +51,17 @@ def construct_network(inp, weights, biases, neurons):
 	return fc7
 
 def train_network(sess, x, y, cfg):
+	# Alias our training config to reduce code
 	t_cfg = cfg['nn']
 
-	# Alias config vars
+	# Alias config vars to reduce code
 	neurons       = t_cfg['parameters']['neurons']
 	epochs        = t_cfg['parameters']['epochs']
 	learning_rate = t_cfg['parameters']['learning_rate']
 	err_thresh    = t_cfg['error_threshold']
 	model_dir     = t_cfg['model_dir']
 	avg_factor    = t_cfg['avg_factor']
+	save_epoch    = t_cfg['save_epoch']
 
 	print('[ANN] \tTraining parameters: epochs={0}, learning_rate={1:.2f}, neurons={2}'.format(epochs, learning_rate, neurons))
 
@@ -72,6 +73,7 @@ def train_network(sess, x, y, cfg):
 	x_ = tf.placeholder(tf.float32, [None, 22], name='x_placeholder')
 	y_ = tf.placeholder(tf.float32, [None, 1],  name='y_placeholder')
 
+	# Generate new random weights for new network
 	weights = {
 		'fc1' : tf.Variable(tf.random_normal([22, neurons]),      name='w_fc1'),
 		'fc2' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc2'),
@@ -104,9 +106,6 @@ def train_network(sess, x, y, cfg):
 	# Initialise global variables of the session
 	sess.run(tf.global_variables_initializer())
 
-	# Save model to file
-	model = util.save_model(sess, weights, biases, neurons, model_dir)
-
 	# Create error logging storage
 	train_errors = []
 	valid_errors = []
@@ -129,10 +128,18 @@ def train_network(sess, x, y, cfg):
 	vel_err  = 0. 
 	acc_err  = 0.
 
+	# Generate a new random model name for new network model
+	model_name = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(4))
+
 	for i in range(epochs):
+		# Run network on training and validation sets
 		_, train_error = sess.run([optimiser, cost], feed_dict={x_: x_train, y_: y_train})
 		_, valid_error = sess.run([optimiser, cost], feed_dict={x_: x_valid, y_: y_valid})
 		
+		# If we're at a save epoch, save!
+		if i % save_epoch == 0:
+			model = util.save_model(sess, weights, biases, neurons, os.path.join(model_dir, model_name + "_model"))
+
 		# Add new errors to list
 		train_errors.append(train_error)
 		valid_errors.append(valid_error)
@@ -172,16 +179,26 @@ def train_network(sess, x, y, cfg):
 
 	t_elapsed = time.time() - t_start
 
-	# Calculate new accuracy from final error
+	# Calculate new simple accuracy from final error
 	accuracy = 1 - train_error
 
-	print('[ANN] Training Completed:')
+	# Save model to file
+	model = util.save_model(sess, weights, biases, neurons, os.path.join(model_dir, model_name + "_model"))
+
+	print('\n[ANN] Training Completed:')
+
+	# Calculate number of minutes, seconds and milliseconds elapsed
 	t_m  = t_elapsed / 60
 	t_s  = t_elapsed % 60
 	t_ms = (t_s % 1) * 1000
-	print('[ANN]\tSimple model accuracy: {0:.3f}%, Time elapsed: {1:2d}m {2:2d}s {3:3d}ms'.format(accuracy*100, int(t_m), int(t_s), int(t_ms)))
-	return model
 
+	print('[ANN]\tModel name: {0}'.format(model_name))
+	print('[ANN]\tSimple model accuracy: {0:.3f}%'.format(accuracy*100))
+	print('[ANN]\tTime elapsed: {0:2d}m {1:2d}s {2:3d}ms'.format(int(t_m), int(t_s), int(t_ms)))
+
+	return model, model_name
+
+# Test network with our test set, return the test results from the test input
 def test_network(sess, model, x_test, y_test, cfg):
 	x_t = tf.placeholder(tf.float32, [None, 22], name='t_x_placeholder')
 	y_t = tf.placeholder(tf.float32, [None, 1],  name='t_y_placeholder')
@@ -211,19 +228,24 @@ def main():
 	x_train, y_train = util.shuffle_data(x_train, y_train)
 	x_test, y_test   = util.shuffle_data(x_test, y_test)
 
+	# Default model name as loaded from file, overwritten if training
+	model_name = cfg['nn']['model_name']
+	model_dir  = cfg['nn']['model_dir']
+
 	with tf.Session() as sess:
 		if cfg['nn']['train']:
 			# Train network on our training data
 			print('[ANN] Training network...')
-			model = train_network(sess, x_train, y_train, cfg)
+			model, model_name = train_network(sess, x_train, y_train, cfg)
 		else:
 			print('[ANN] Testing network...')
-			model = util.load_model(cfg['training']['nn']['model_dir'])
+			model = util.load_model(os.path.join(model_dir, model_name + "_model"))
 
 		# Test network on our testing data
 		results = test_network(sess, model, x_test, y_test, cfg)
 		conf_mat = util.analyse_results(y_test, results)
-		util.store_results(conf_mat, cfg['nn']['conf_mat_dir'])
+		util.store_results(conf_mat, os.path.join(model_dir, model_name + "_cm"))
 
+# Make sure to only run if not being imported
 if __name__ == '__main__':
 	main()
