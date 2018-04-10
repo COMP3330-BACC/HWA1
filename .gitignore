@@ -2,4 +2,4 @@
 *.pyc
 
 # Ignore our trained models
-*models*
+**/models/*/*.yaml
