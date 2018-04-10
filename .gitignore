@@ -1,2 +1,2 @@
-# Ignore virtual environment files
-ve/*
+# Ignore compiled python scripts
+*.pyc
