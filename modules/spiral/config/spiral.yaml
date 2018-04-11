@@ -4,20 +4,48 @@ two_spiral:
     nn:
       enabled: True               # Enable use of neural networks
       train: True                 # Enable training of NN
-      test: True                  # Enable testing of NN
-      neurons: [10, 100]          # Limits of neurons random generation (per layer)
-      epochs: [1000, 8000]        # Limits of epochs random generation (total)
-      learning_rate: [0.1, 5.0]   # Limits of learning rate random gen
+      neurons: [50, 80]          # Limits of neurons random generation (per layer)
+      epochs: [10000, 20000]        # Limits of epochs random generation (total)
+      learning_rate: [0.01, 1.0]   # Limits of learning rate random gen
       iterations: 10              # Number of iterations (models) to be generated
       accuracy_threshold: 0.9998  # Accuracy threshold for stopping model generation
+      model_dir: "models/nn/"
+      model_name: ""
     svm:
       enabled: True               # Enable use of SVM
       C: 1.                       # C parameter
       kernel: 'rbf'               # Kernel parameter
       gamma: 1.                   # Gamma parameter
+      model_dir: "models/svm/"
+      model_name: ""
   testing: 
     limits: [-7, 7]               # Size of test data
   plotting:
     enabled: True
+    title: 'Two-Spiral Problem'
+    c1: ['#ffbafc', '#c9f8ff']
+    c2: ['#ff00f6', '#00e1ff']
+two_spiral_dense:
+  dataset: "datasets/spirals2dataset.csv"
+  training:
+    nn:
+      enabled: True
+      train: True
+      test: True
+      neurons: [50, 80]
+      epochs: [10000, 20000]
+      learning_rate: [0.01, 1.0]
+      iterations: 10
+      accuracy_threshold: 0.9998
+    svm:
+      enabled: True
+      C: 1.
+      kernel: 'rbf'
+      gamma: 1.
+  testing: 
+    limits: [-8, 8]
+  plotting:
+    enabled: True
+    title: 'Dense Two-Spiral Problem'
     c1: ['#ffbafc', '#c9f8ff']
     c2: ['#ff00f6', '#00e1ff']
