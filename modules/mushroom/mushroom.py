@@ -84,6 +84,7 @@ def train_network(sess, x, y, cfg):
 		'fc7' : tf.Variable(tf.random_normal([neurons, 1]),       name='w_fc7'),
 	}
 
+	# Generate new random biases for new network
 	biases = {
 		'fc1' : tf.Variable(tf.random_normal([neurons]), name='b_fc1'),
 		'fc2' : tf.Variable(tf.random_normal([neurons]), name='b_fc2'),
@@ -235,10 +236,10 @@ def main():
 	with tf.Session() as sess:
 		if cfg['nn']['train']:
 			# Train network on our training data
-			print('[ANN] Training network...')
+			print('[ANN] Training new network...')
 			model, model_name = train_network(sess, x_train, y_train, cfg)
 		else:
-			print('[ANN] Testing network...')
+			print('[ANN] Testing network {0}...'.format(model_name))
 			model = util.load_model(os.path.join(model_dir, model_name + "_model"))
 
 		# Test network on our testing data
