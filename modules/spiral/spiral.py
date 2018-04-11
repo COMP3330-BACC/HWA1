@@ -28,7 +28,7 @@ def load_data(data_file):
 	exit()
 
 # Plot data for a 2D coordinate vector (x) and class [0, 1] (y)
-def plot_data(x, y, train_type, c):
+def plot_data(x, y, train_type, c, title):
 	# Gather points within class a and b for two spiral problem
 	# TODO: Find more efficient way to do this
 	a = []; b = []
@@ -43,38 +43,19 @@ def plot_data(x, y, train_type, c):
 	plt.scatter([d[0] for d in b], [d[1] for d in b], color=c[1])
 
 	# Format plot
-	plt.title('Two-Spiral Classification Problem ({0})'.format(train_type))
+	plt.title('{0} ({1})'.format(title, train_type))
 	plt.xlabel('x')
 	plt.ylabel('y')
 
 ### ANN
-def construct_network(inp, inp_size, out_size, neurons):
-	# First layer
-	first_layer_weights = tf.Variable(tf.random_normal([inp_size, neurons]), name='first_weights')
-	first_layer_bias    = tf.Variable(tf.random_normal([neurons]), name='first_bias')
-	first_layer         = tf.nn.sigmoid(tf.add((tf.matmul(inp, first_layer_weights)), first_layer_bias), name='first')
+def construct_network(inp, weights, biases, neurons):
+	fc1 = tf.nn.sigmoid(tf.add((tf.matmul(inp, weights['fc1'])), biases['fc1']), name='fc1')
+	fc2 = tf.nn.sigmoid(tf.add((tf.matmul(fc1, weights['fc2'])), biases['fc2']), name='fc2')
+	fc3 = tf.nn.sigmoid(tf.add((tf.matmul(fc2, weights['fc3'])), biases['fc3']), name='fc3')
+	fc4 = tf.nn.sigmoid(tf.add((tf.matmul(fc3, weights['fc4'])), biases['fc4']), name='fc4')
+	fc5 = tf.nn.sigmoid(tf.add((tf.matmul(fc4, weights['fc5'])), biases['fc5']), name='fc5')
 
-	# Second layer
-	l1_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l1_weights')
-	l1_bias             = tf.Variable(tf.random_normal([neurons]), name='l1_bias')
-	l1                  = tf.nn.sigmoid(tf.add((tf.matmul(first_layer, l1_weights)), l1_bias), name='l1')
-
-	# Third layer
-	l2_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l2_weights')
-	l2_bias             = tf.Variable(tf.random_normal([neurons]), name='l2_bias')
-	l2                  = tf.nn.sigmoid(tf.add((tf.matmul(l1, l2_weights)), l2_bias), name='l2')
-
-	# Fourth layer
-	l3_weights          = tf.Variable(tf.random_normal([neurons, neurons]), name='l3_weights')
-	l3_bias             = tf.Variable(tf.random_normal([neurons]), name='l3_bias')
-	l3                  = tf.nn.sigmoid(tf.add((tf.matmul(l2, l3_weights)), l3_bias), name='l3')
-
-	# Fifth layer
-	final_layer_weights = tf.Variable(tf.random_normal([neurons, out_size]), name='final_weights')
-	final_layer_bias    = tf.Variable(tf.random_normal([out_size]), name='final_bias')
-	final_layer         = tf.nn.sigmoid(tf.add((tf.matmul(l3, final_layer_weights)), final_layer_bias), name='final')
-
-	return final_layer
+	return fc5
 
 def get_fitness(error, time_to_train):
 	return error
@@ -82,16 +63,16 @@ def get_fitness(error, time_to_train):
 def train_network(x, y, cfg):
 	## Create network ##
 	# Alias config vars
-	neuron_lims = cfg['two_spiral']['training']['nn']['neurons']
-	epoch_lims  = cfg['two_spiral']['training']['nn']['epochs']
-	lr_lims     = cfg['two_spiral']['training']['nn']['learning_rate']
-	iterations  = cfg['two_spiral']['training']['nn']['iterations']
-	acc_thresh  = cfg['two_spiral']['training']['nn']['accuracy_threshold']
+	neuron_lims = cfg['training']['nn']['neurons']
+	epoch_lims  = cfg['training']['nn']['epochs']
+	lr_lims     = cfg['training']['nn']['learning_rate']
+	iterations  = cfg['training']['nn']['iterations']
+	acc_thresh  = cfg['training']['nn']['accuracy_threshold']
 
 	# TODO: Remove when train_network and test_network can be separated
-	c1      = cfg['two_spiral']['plotting']['c1']
-	c2      = cfg['two_spiral']['plotting']['c2']
-	plot_en = cfg['two_spiral']['plotting']['enabled']
+	c1      = cfg['plotting']['c1']
+	c2      = cfg['plotting']['c2']
+	plot_en = cfg['plotting']['enabled']
 
 	# Create placeholders for tensors
 	x_ = tf.placeholder(tf.float32, [None, 2], name='x_placeholder')  # Input of (x, y)
@@ -107,7 +88,9 @@ def train_network(x, y, cfg):
 		neurons = random.randint(neuron_lims[0], neuron_lims[1])
 		epochs = random.randint(epoch_lims[0], epoch_lims[1])
 
-		final_layer = construct_network(x_, 2, 1, neurons)
+		weights, biases = generate_weights(neurons)
+
+		final_layer = construct_network(x_, weights, biases, neurons)
 
 		# Define error function
 		cost = tf.reduce_mean(tf.losses.mean_squared_error(labels=y_, predictions=final_layer))
@@ -131,7 +114,6 @@ def train_network(x, y, cfg):
 			errors.append(error)
 			# Stop model early if we're under an acceptable threshold
 			if error <= 1 - acc_thresh:
-				print('Stopping model early!')
 				epochs = i
 				break
 
@@ -157,9 +139,9 @@ def train_network(x, y, cfg):
 				'errors'        : errors,
 				'final_layer'   : final_layer # Should not store model this way -- will be undefined when sess.close is called
 			}
-			print('[ANN] New model:')
-			print('[ANN] \tTraining parameters: epochs={0}, learning_rate={1:.2f}, neurons={2}, fitness={3:.5f}'.format(opt_model['epochs'], opt_model['learning_rate'], opt_model['neurons'], fitness))
-			print('[ANN] \tModel accuracy: {0:.3f}%, Time to train: {1:.2f}s'.format(opt_model['accuracy']*100, opt_model['duration']))
+			print('\t[ANN] New model:')
+			print('\t[ANN] \tTraining parameters: epochs={0}, learning_rate={1:.2f}, neurons={2}, fitness={3:.5f}'.format(opt_model['epochs'], opt_model['learning_rate'], opt_model['neurons'], fitness))
+			print('\t[ANN] \tModel accuracy: {0:.3f}%, Time to train: {1:.2f}s'.format(opt_model['accuracy']*100, opt_model['duration']))
 
 	# Set size of figure and create first subplot
 	plt.subplot(2, 2, 1)
@@ -176,7 +158,7 @@ def train_network(x, y, cfg):
 	plt.subplot(2, 2, 2)
 
 	# Create test data
-	lim = cfg['two_spiral']['testing']['limits']
+	lim = cfg['testing']['limits']
 	test_range = np.arange(lim[0], lim[1], 0.1)
 	x_test = [(x, y) for x in test_range for y in test_range]
 	
@@ -189,10 +171,10 @@ def train_network(x, y, cfg):
 	# Average out the test timing
 	t_avg_test = (time.time() - t_test) / float(len(y_test))
 
-	print('[ANN] Average time to test: {0:.2f}us'.format(1000000 * t_avg_test))
+	print('\t[ANN] Average time to test: {0:.2f}us'.format(1000000 * t_avg_test))
 
 	# Create class lists
-	plot_data(x_test, y_test, 'ANN', c1)
+	plot_data(x_test, y_test, 'ANN', c1, cfg['plotting']['title'])
 
 	# print(opt_model)
 	return opt_model
@@ -200,11 +182,11 @@ def train_network(x, y, cfg):
 ### SVM
 def train_svm(x, y, cfg):
 	# Read in SVM parameters
-	C      = cfg['two_spiral']['training']['svm']['C']
-	kernel = cfg['two_spiral']['training']['svm']['kernel']
-	gamma  = cfg['two_spiral']['training']['svm']['gamma']
+	C      = cfg['training']['svm']['C']
+	kernel = cfg['training']['svm']['kernel']
+	gamma  = cfg['training']['svm']['gamma']
 
-	print('[SVM] Training parameters: C={0}, kernel={1}, gamma={2}'.format(C, kernel, gamma))
+	print('\t[SVM] Training parameters: C={0}, kernel={1}, gamma={2}'.format(C, kernel, gamma))
 
 	# Create SVM with parameters
 	svm = SVC(C=C, kernel=kernel, gamma=gamma)
@@ -218,11 +200,11 @@ def train_svm(x, y, cfg):
 	# End SVM timing
 	t_train = time.time() - t_start
 
-	print('[SVM] Model accuracy: {0:.2f}%, Time to train: {1:.5f}s'.format(100*svm.score(x, np.ravel(y)), t_train))
+	print('\t[SVM] Model accuracy: {0:.2f}%, Time to train: {1:.5f}s'.format(100*svm.score(x, np.ravel(y)), t_train))
 
 	return svm
 
-def test_svm(svm, x, cfg):
+def test_svm(svm, x):
 	# Start timing testing of SVM
 	t_start = time.time()
 
@@ -231,56 +213,70 @@ def test_svm(svm, x, cfg):
 	# Average 
 	t_avg_test = (time.time() - t_start) / float(len(y))
 
-	print('[SVM] Average time to test: {0:.2f}us'.format(1000000 * t_avg_test))
+	print('\t[SVM] Average time to test: {0:.2f}us'.format(1000000 * t_avg_test))
 
 	return y
 
 def main():
+	sub_modules = ['two_spiral', 'two_spiral_dense']
+
 	# Read config file
 	cfg = util.read_config('config/spiral.yaml')
 
-	# Load from config
-	lim     = cfg['two_spiral']['testing']['limits']
-	c1      = cfg['two_spiral']['plotting']['c1']
-	c2      = cfg['two_spiral']['plotting']['c2']
-	plot_en = cfg['two_spiral']['plotting']['enabled']
+	for m in sub_modules:
+		# Alias module configuration so we don't have to read from dict each time!
+		cfg_m = cfg[m]
 
-	# Load two spiral data from dataset
-	x_train, y_train = load_data(cfg['two_spiral']['dataset'])
+		# Load from config
+		lim     = cfg_m['testing']['limits']
+		c1      = cfg_m['plotting']['c1']
+		c2      = cfg_m['plotting']['c2']
+		plot_en = cfg_m['plotting']['enabled']
+		title   = cfg_m['plotting']['title']
 
-	# Create test set
-	act_range = np.arange(lim[0], lim[1], 0.1)
+		print('Training on Module: {0}'.format(title))
 
-	# Perform testing on SVM
-	x_test = [(x, y) for x in act_range for y in act_range]
+		# Load two spiral data from dataset
+		x_train, y_train = load_data(cfg_m['dataset'])
 
-	# Initilise figure size
-	if plot_en: 
-		fig = plt.figure(figsize=(8, 8))
+		# Create test set
+		act_range = np.arange(lim[0], lim[1], 0.1)
 
-	## Neural Network
-	if cfg['two_spiral']['training']['nn']['enabled']:
-		# Train network on dataset
-		train_network(x_train, y_train, cfg)
+		# Perform testing on SVM
+		x_test = [(x, y) for x in act_range for y in act_range]
 
-		# Create plot of training data and show all plotting
-		if plot_en:
-			plot_data(x_train, y_train, 'ANN', c2)
-		print()
+		# Initilise figure size
+		if plot_en: 
+			fig = plt.figure(figsize=(8, 8))
 
-	## SVM
-	if cfg['two_spiral']['training']['svm']['enabled']:
-		# Train SVM on training dataset
-		svm = train_svm(x_train, y_train, cfg)
+		## Neural Network
+		if cfg_m['training']['nn']['enabled']:
+			# Train network on dataset
+			train_network(x_train, y_train, cfg_m)
 
-		# Test SVM on test dataset
-		y_test = test_svm(svm, x_test, cfg)
+			# Create plot of training data and show all plotting
+			if plot_en:
+				plot_data(x_train, y_train, 'ANN', c2, title)
 
-		# Create plot of training data over testing data
-		if plot_en:
-			plt.subplot(2, 2, 4)
-			plot_data(x_test, y_test, 'SVM', c1)
-			plot_data(x_train, y_train, 'SVM', c2)
+			# New line
+			print()
+
+		## SVM
+		if cfg_m['training']['svm']['enabled']:
+			# Train SVM on training dataset
+			svm = train_svm(x_train, y_train, cfg_m)
+
+			# Test SVM on test dataset
+			y_test = test_svm(svm, x_test)
+
+			# Create plot of training data over testing data
+			if plot_en:
+				plt.subplot(2, 2, 4)
+				plot_data(x_test, y_test, 'SVM', c1, title)
+			plot_data(x_train, y_train, 'SVM', c2, title)
+			
+			# New line 
+			print()
 
 	plt.show()
 
