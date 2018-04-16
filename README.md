@@ -6,6 +6,12 @@
 * b) ANN with Variation of Two-Spiral Task
 * c) Comparison of ANN and SVM approaches
 
+### Example Output
+* a) Two-Spiral Task
+![Example output for two-spiral task](./doc/images/Spiral.png)
+* b) Dense-Spiral Task
+![Example output for dense two-spiral task](./doc/images/Spiral_Dense.png)
+
 ## Question 2 - Mushroom Classification Task
 Design and implement a classifier capable of classifying poisonous and non-poisonous mushrooms from the given [dataset](https://archive.ics.uci.edu/ml/datasets/mushroom)
 
