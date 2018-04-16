@@ -88,7 +88,23 @@ def train_network(x, y, cfg):
 		neurons = random.randint(neuron_lims[0], neuron_lims[1])
 		epochs = random.randint(epoch_lims[0], epoch_lims[1])
 
-		weights, biases = generate_weights(neurons)
+		# Generate new random weights for new network
+		weights = {
+			'fc1' : tf.Variable(tf.random_normal([2, neurons]),      name='w_fc1'),
+			'fc2' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc2'),
+			'fc3' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc3'),
+			'fc4' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc4'),
+			'fc5' : tf.Variable(tf.random_normal([neurons, 1]), name='w_fc5')
+		}
+
+		# Generate new random biases for new network
+		biases = {
+			'fc1' : tf.Variable(tf.random_normal([neurons]), name='b_fc1'),
+			'fc2' : tf.Variable(tf.random_normal([neurons]), name='b_fc2'),
+			'fc3' : tf.Variable(tf.random_normal([neurons]), name='b_fc3'),
+			'fc4' : tf.Variable(tf.random_normal([neurons]), name='b_fc4'),
+			'fc5' : tf.Variable(tf.random_normal([1]), name='b_fc5')
+		}
 
 		final_layer = construct_network(x_, weights, biases, neurons)
 
