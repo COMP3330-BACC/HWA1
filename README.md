@@ -2,15 +2,15 @@
   Repo for homework assignment 1 of COMP3330 Machine Intelligence
 
 ## Question 1 - Variations of the Two-Spiral Task
-* a) Feed-Forward ANN approach
-* b) ANN with Variation of Two-Spiral Task
-* c) Comparison of ANN and SVM approaches
++ a) Feed-Forward ANN approach
++ b) ANN with Variation of Two-Spiral Task
++ c) Comparison of ANN and SVM approaches
 
 ### Example Output
-* a) Two-Spiral Task
-![Example output for two-spiral task](./doc/images/Spiral_small.png)
-* b) Dense-Spiral Task
-![Example output for dense two-spiral task](./doc/images/Spiral_Dense_small.png)
++ a) Two-Spiral Task
+    - ![Example output for two-spiral task](./doc/images/Spiral_small.png)
++ b) Dense-Spiral Task
+    - ![Example output for dense two-spiral task](./doc/images/Spiral_Dense_small.png)
 
 ## Question 2 - Mushroom Classification Task
 Design and implement a classifier capable of classifying poisonous and non-poisonous mushrooms from the given [dataset](https://archive.ics.uci.edu/ml/datasets/mushroom)
