@@ -8,9 +8,9 @@
 
 ### Example Output
 * a) Two-Spiral Task
-![Example output for two-spiral task](./doc/images/Spiral.png)
+![Example output for two-spiral task](./doc/images/Spiral_small.png)
 * b) Dense-Spiral Task
-![Example output for dense two-spiral task](./doc/images/Spiral_Dense.png)
+![Example output for dense two-spiral task](./doc/images/Spiral_Dense_small.png)
 
 ## Question 2 - Mushroom Classification Task
 Design and implement a classifier capable of classifying poisonous and non-poisonous mushrooms from the given [dataset](https://archive.ics.uci.edu/ml/datasets/mushroom)
