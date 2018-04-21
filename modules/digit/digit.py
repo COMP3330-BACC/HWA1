@@ -6,6 +6,7 @@ import time						 # time 		-- performance measure
 import csv
 import random
 import string
+from sklearn.svm import SVC
 
 import sys
 sys.path.insert(0, '../../')
@@ -16,26 +17,32 @@ def load_data(data_file):
 		csvreader = csv.reader(csvfile, delimiter=',')
 		x = []
 		y = []
-		count = 0
-		#count2 = 0
-		for row in csvreader:
-			count+=1
-			if count %2 == 1:
-		#		count2 +=1
-				x_conv = (list(map(int, row[:-1])))
-				y_conv = ([int(row[-1])])
-				x.append(x_conv)
-				y.append(y_conv)
-				#print(x_conv)
-				#print(y_conv)
 
-		#print(count2)
+		for row in csvreader:
+			x_conv = (list(map(float, row[:-1])))
+			y_conv = ([float(row[-1])])
+			x.append(x_conv)
+			y.append(y_conv)
+			#print(x_conv)
+			#print(y_conv)
+
+		y=relabel(y)
+
 		x, y = util.shuffle_data(x, y)
 		x_train, x_test, y_train, y_test = util.split_data(x, y, 0.9)
 
 		return x_train, x_test, y_train, y_test
 	print('[ERR] Failed to load data from file \'{0}\''.format(data_file))
 	exit()
+
+def relabel(data):
+	new_data = []
+	classes = 10
+	for row in data:
+		new_row = [0] * classes
+		new_row[int(row[0])] = 1
+		new_data.append(new_row)
+	return new_data
 
 def construct_network(inp, weights, biases, neurons):
 	fc1 = tf.nn.sigmoid(tf.add((tf.matmul(inp, weights['fc1'])), biases['fc1']), name='fc1')
@@ -69,7 +76,7 @@ def train_network(sess, x, y, cfg):
 
 	# Create placeholders for tensors
 	x_ = tf.placeholder(tf.float32, [None, 784], name='x_placeholder')
-	y_ = tf.placeholder(tf.float32, [None, 1],  name='y_placeholder')
+	y_ = tf.placeholder(tf.float32, [None, 10],  name='y_placeholder')
 
 	# Generate new random weights for new network
 	weights = {
@@ -79,7 +86,7 @@ def train_network(sess, x, y, cfg):
 		'fc4' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc4'),
 		'fc5' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc5'),
 		'fc6' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc6'),
-		'fc7' : tf.Variable(tf.random_normal([neurons, 1]),       name='w_fc7'),
+		'fc7' : tf.Variable(tf.random_normal([neurons, 10]),       name='w_fc7'),
 	}
 
 	# Generate new random biases for new network
@@ -90,7 +97,7 @@ def train_network(sess, x, y, cfg):
 		'fc4' : tf.Variable(tf.random_normal([neurons]), name='b_fc4'),
 		'fc5' : tf.Variable(tf.random_normal([neurons]), name='b_fc5'),
 		'fc6' : tf.Variable(tf.random_normal([neurons]), name='b_fc6'),
-		'fc7' : tf.Variable(tf.random_normal([1]),       name='b_fc7'),
+		'fc7' : tf.Variable(tf.random_normal([10]),       name='b_fc7'),
 	}
 
 	# Construct our network and return the last layer to output the result
@@ -200,7 +207,7 @@ def train_network(sess, x, y, cfg):
 # Test network with our test set, return the test results from the test input
 def test_network(sess, model, x_test, y_test, cfg):
 	x_t = tf.placeholder(tf.float32, [None, 784], name='t_x_placeholder')
-	y_t = tf.placeholder(tf.float32, [None, 1],  name='t_y_placeholder')
+	y_t = tf.placeholder(tf.float32, [None, 10],  name='t_y_placeholder')
 
 	final_layer = construct_network(x_t, model['weights'], model['biases'], model['neurons'])
 
@@ -242,9 +249,10 @@ def main():
 
 		# Test network on our testing data
 		results = test_network(sess, model, x_test, y_test, cfg)
-		conf_mat = util.analyse_results(y_test, results)
-		util.store_results(conf_mat, os.path.join(model_dir, model_name + "_cm"))
-'''	'''
+
+	#	conf_mat = util.analyse_results(y_test, results)
+	#	util.store_results(conf_mat, os.path.join(model_dir, model_name + "_cm"))
+'''	'''	
 # Make sure to only run if not being imported
 if __name__ == '__main__':
 	main()

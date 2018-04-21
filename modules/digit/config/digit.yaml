@@ -7,8 +7,17 @@ nn:
   model_name: ""
   save_epoch: 100
   parameters:
-    neurons: 150                # Limits of neurons random generation (per layer)
-    epochs: 500                 # Limits of epochs random generation (total)
-    learning_rate: 0.05         # Limits of learning rate random gen
+    neurons: 10                # Limits of neurons random generation (per layer)
+    epochs: 150                 # Limits of epochs random generation (total)
+    learning_rate: 0.2         # Limits of learning rate random gen
   error_threshold: 0.01         # Error threshold for stopping model generation
   avg_factor: 5
+svm:
+  enabled: True
+  train: True
+  test: True
+  model_dir: "models/svm/"
+  model_name: ""
+  C: 1.
+  kernel: 'rbf'
+  gamma: 1.
