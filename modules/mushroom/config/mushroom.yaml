@@ -1,14 +1,16 @@
 dataset: "datasets/agaricus-lepiota.data"
+test_ratio_offset: 0.1 
 nn:
-  enabled: True               # Enable use of neural networks
-  train: True                 # Enable training of NN, if disabled used model from <model_dir>
-  test: True                  # Enable testing of NN
+  enabled: True            # Enable use of neural networks
+  train: True             # Enable training of NN, if disabled used model from <model_dir>
+  test: True               # Enable testing of NN
   model_dir: "models/nn/"
-  model_name: ""
+  model_name: "102d"
   save_epoch: 100
   parameters:
-    neurons: 150                # Limits of neurons random generation (per layer)
-    epochs: 500                 # Limits of epochs random generation (total)
-    learning_rate: 0.01         # Limits of learning rate random gen
-  error_threshold: 0.01         # Error threshold for stopping model generation
+    neurons: 100           # Limits of neurons random generation (per layer)
+    epochs: 500            # Limits of epochs random generation (total)
+    learning_rate: 0.02    # Limits of learning rate random gen
+  error_threshold: 0.01    # Error threshold for stopping model generation
+  valid_threshold: 0.1     # Threshold to determine training stopping point to prevent overtraining
   avg_factor: 5
