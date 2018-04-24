@@ -14,13 +14,17 @@ import util 					# util 			-- our bag of helper functions!
 
 # Will load data in form as specified by the dataset description 
 #	(https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.names) 
-def load_data(data_file):
+def load_data(data_file, test_ratio_offset):
 	with open(data_file, 'r') as csvfile:
 		csvreader = csv.reader(csvfile, delimiter=',')
 		x = []
 		y = []
 
 		for row in csvreader:
+			for i in range(0, len(row)-1):
+				if row[1 + i] == '?':
+					row[1 + i] = 'a'
+
 			x_conv = list(map(float, map(ord, row[1:])))
 			y_conv = [0. if row[0] == 'p' else 1.]
 			# Remove question marks
@@ -29,11 +33,18 @@ def load_data(data_file):
 					u = -1.
 			x.append(x_conv)
 			y.append(y_conv)
-			# print(x_conv)
-			# print(y_conv)
+
+		split_ratio = 0.9
 
 		x, y = util.shuffle_data(x, y)
-		x_train, x_test, y_train, y_test = util.split_data(x, y, 0.9)
+		x_train, x_test, y_train, y_test = util.split_data(x, y, split_ratio)
+		
+		# Check that we can create a confusion matrix 
+		# 	(have at least 1 positive and negative sample in test set)
+
+		while(len([result for result in y_test if result[0] == 0.]) < (0.5 - test_ratio_offset) * len(y_test)
+			or len([result for result in y_test if result[0] == 1.]) < (0.5 - test_ratio_offset) * len(y_test)):
+			x_train, x_test, y_train, y_test = util.split_data(x, y, split_ratio)
 
 		return x_train, x_test, y_train, y_test
 	print('[ERR] Failed to load data from file \'{0}\''.format(data_file))
@@ -43,12 +54,8 @@ def construct_network(inp, weights, biases, neurons):
 	fc1 = tf.nn.sigmoid(tf.add((tf.matmul(inp, weights['fc1'])), biases['fc1']), name='fc1')
 	fc2 = tf.nn.sigmoid(tf.add((tf.matmul(fc1, weights['fc2'])), biases['fc2']), name='fc2')
 	fc3 = tf.nn.sigmoid(tf.add((tf.matmul(fc2, weights['fc3'])), biases['fc3']), name='fc3')
-	fc4 = tf.nn.sigmoid(tf.add((tf.matmul(fc3, weights['fc4'])), biases['fc4']), name='fc4')
-	fc5 = tf.nn.sigmoid(tf.add((tf.matmul(fc4, weights['fc5'])), biases['fc5']), name='fc5')
-	fc6 = tf.nn.sigmoid(tf.add((tf.matmul(fc4, weights['fc6'])), biases['fc6']), name='fc5')
-	fc7 = tf.nn.sigmoid(tf.add((tf.matmul(fc5, weights['fc7'])), biases['fc7']), name='fc6')
-
-	return fc7
+	
+	return fc3
 
 def train_network(sess, x, y, cfg):
 	# Alias our training config to reduce code
@@ -62,11 +69,12 @@ def train_network(sess, x, y, cfg):
 	model_dir     = t_cfg['model_dir']
 	avg_factor    = t_cfg['avg_factor']
 	save_epoch    = t_cfg['save_epoch']
+	valid_thresh  = t_cfg['valid_threshold']
 
 	print('[ANN] \tTraining parameters: epochs={0}, learning_rate={1:.2f}, neurons={2}'.format(epochs, learning_rate, neurons))
 
 	# Create validation set
-	x_train, x_valid, y_train, y_valid = util.split_data(x, y, 0.95)
+	x_train, x_valid, y_train, y_valid = util.split_data(x, y, 0.9)
 	x_valid, y_valid = util.shuffle_data(x_valid, y_valid)
 
 	# Create placeholders for tensors
@@ -77,32 +85,26 @@ def train_network(sess, x, y, cfg):
 	weights = {
 		'fc1' : tf.Variable(tf.random_normal([22, neurons]),      name='w_fc1'),
 		'fc2' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc2'),
-		'fc3' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc3'),
-		'fc4' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc4'),
-		'fc5' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc5'),
-		'fc6' : tf.Variable(tf.random_normal([neurons, neurons]), name='w_fc6'),
-		'fc7' : tf.Variable(tf.random_normal([neurons, 1]),       name='w_fc7'),
+		'fc3' : tf.Variable(tf.random_normal([neurons, 1]),       name='w_fc3'),
 	}
 
 	# Generate new random biases for new network
 	biases = {
 		'fc1' : tf.Variable(tf.random_normal([neurons]), name='b_fc1'),
 		'fc2' : tf.Variable(tf.random_normal([neurons]), name='b_fc2'),
-		'fc3' : tf.Variable(tf.random_normal([neurons]), name='b_fc3'),
-		'fc4' : tf.Variable(tf.random_normal([neurons]), name='b_fc4'),
-		'fc5' : tf.Variable(tf.random_normal([neurons]), name='b_fc5'),
-		'fc6' : tf.Variable(tf.random_normal([neurons]), name='b_fc6'),
-		'fc7' : tf.Variable(tf.random_normal([1]),       name='b_fc7'),
+		'fc3' : tf.Variable(tf.random_normal([1]),       name='b_fc3'),
 	}
 
 	# Construct our network and return the last layer to output the result
 	final_layer = construct_network(x_, weights, biases, neurons)
 
 	# Define error function
-	cost = tf.reduce_mean(tf.losses.mean_squared_error(labels=y_, predictions=final_layer))
+	cost_train = tf.reduce_mean(tf.losses.mean_squared_error(labels=y_, predictions=final_layer))
+	cost_valid = tf.reduce_mean(tf.losses.mean_squared_error(labels=y_, predictions=final_layer))
 
 	# Define optimiser and minimise error function task
-	optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
+	optimiser_train = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost_train)
+	optimiser_valid = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost_valid)
 
 	# Initialise global variables of the session
 	sess.run(tf.global_variables_initializer())
@@ -112,6 +114,7 @@ def train_network(sess, x, y, cfg):
 	valid_errors = []
 
 	# Setup our continous plot
+	fig = plt.figure()
 	plt.title('Error vs Epoch')
 	plt.plot(train_errors[:epochs], color='r', label='training')
 	plt.plot(valid_errors[:epochs], color='b', label='validation')
@@ -134,12 +137,12 @@ def train_network(sess, x, y, cfg):
 
 	for i in range(epochs):
 		# Run network on training and validation sets
-		_, train_error = sess.run([optimiser, cost], feed_dict={x_: x_train, y_: y_train})
-		_, valid_error = sess.run([optimiser, cost], feed_dict={x_: x_valid, y_: y_valid})
-		
+		_, train_error = sess.run([optimiser_train, cost_train], feed_dict={x_: x_train, y_: y_train})
+		_, valid_error = sess.run([optimiser_train, cost_train], feed_dict={x_: x_valid, y_: y_valid})
+
 		# If we're at a save epoch, save!
 		if i % save_epoch == 0:
-			model = util.save_model(sess, weights, biases, neurons, os.path.join(model_dir, model_name + "_model"))
+			model = util.save_model(sess, weights, biases, neurons, train_errors, os.path.join(model_dir, model_name + "_model"))
 
 		# Add new errors to list
 		train_errors.append(train_error)
@@ -167,7 +170,7 @@ def train_network(sess, x, y, cfg):
 			# print('[ANN] Epoch: {0:4d}, Δerr = {1:7.4f}, 𝛿(Δerr) = {2:7.4f}, 𝛿(𝛿(Δerr)) = {3:7.4f}'.format(i, diff_err, vel_err, acc_err)) # DEBUG
 
 		# If we already have our target error, terminate early
-		if train_error <= err_thresh:
+		if train_error <= err_thresh or (diff_err > valid_thresh and vel_err < 0.):
 			break
 		
 		# Set plot settings
@@ -178,13 +181,15 @@ def train_network(sess, x, y, cfg):
 			plt.draw()
 			plt.pause(0.001)			
 
+	plt.ioff()
+
 	t_elapsed = time.time() - t_start
 
 	# Calculate new simple accuracy from final error
 	accuracy = 1 - train_error
 
 	# Save model to file
-	model = util.save_model(sess, weights, biases, neurons, os.path.join(model_dir, model_name + "_model"))
+	model = util.save_model(sess, weights, biases, neurons, train_errors, os.path.join(model_dir, model_name + "_model"))
 
 	print('\n[ANN] Training Completed:')
 
@@ -197,7 +202,7 @@ def train_network(sess, x, y, cfg):
 	print('[ANN]\tSimple model accuracy: {0:.3f}%'.format(accuracy*100))
 	print('[ANN]\tTime elapsed: {0:2d}m {1:2d}s {2:3d}ms'.format(int(t_m), int(t_s), int(t_ms)))
 
-	return model, model_name
+	return model, model_name, {'num_layers': len(weights), 'layer_width': neurons, 'learning_rate': learning_rate, 'time_to_train': t_elapsed, 'train_errors': [float(i) for i in train_errors], 'valid_errors': [float(i) for i in valid_errors]}
 
 # Test network with our test set, return the test results from the test input
 def test_network(sess, model, x_test, y_test, cfg):
@@ -210,7 +215,7 @@ def test_network(sess, model, x_test, y_test, cfg):
 	t_test = time.time()
 
 	# Classify test data
-	result = np.round(sess.run(final_layer, feed_dict={x_t : x_test, y_t : y_test}))
+	result = sess.run(final_layer, feed_dict={x_t : x_test, y_t : y_test})
 
 	# Average out the test timing
 	t_avg_test = (time.time() - t_test) / float(len(y_test))
@@ -219,13 +224,25 @@ def test_network(sess, model, x_test, y_test, cfg):
 	print('[ANN]\tAverage time to test: {0:.2f}us'.format(1000000 * t_avg_test))
 	return result
 
+def plot_roc(sk_fpr, sk_tpr, roc_auc):
+	fig = plt.figure()
+	plt.title('ROC Curve')
+	plt.plot([0., 1.], [0., 1.], 'r--', label='ROC Curve (area = {0:.2f})'.format(roc_auc))
+	plt.plot(sk_fpr, sk_tpr, 'b')
+
+	plt.xlabel('FPR')
+	plt.ylabel('TPR')
+	plt.axis([0, 1., 0., 1.])
+	plt.legend()
+	plt.show()
+
 ## Main Program
 def main():
 	# Read config file
 	cfg  = util.read_config('config/mushroom.yaml')
 
 	# Load mushroom data from dataset
-	x_train, x_test, y_train, y_test = load_data(cfg['dataset'])
+	x_train, x_test, y_train, y_test = load_data(cfg['dataset'], cfg['test_ratio_offset'])
 	x_train, y_train = util.shuffle_data(x_train, y_train)
 	x_test, y_test   = util.shuffle_data(x_test, y_test)
 
@@ -237,15 +254,30 @@ def main():
 		if cfg['nn']['train']:
 			# Train network on our training data
 			print('[ANN] Training new network...')
-			model, model_name = train_network(sess, x_train, y_train, cfg)
+			model, model_name, train_stats = train_network(sess, x_train, y_train, cfg)
 		else:
+			loaded_results = util.load_results(os.path.join(model_dir, model_name + "_cm"))
+			# Setup our continous plot
+			plt.title('Error vs Epoch')
+			plt.plot(loaded_results['train_stats']['train_errors'], color='r', label='training')
+			plt.plot(loaded_results['train_stats']['valid_errors'], color='b', label='validation')
+			plt.xlabel('Epoch')
+			plt.ylabel('Error')
+			plt.legend()
+			plt.grid()
+			plt.show()
+
 			print('[ANN] Testing network {0}...'.format(model_name))
 			model = util.load_model(os.path.join(model_dir, model_name + "_model"))
+			train_stats = loaded_results['train_stats']
 
 		# Test network on our testing data
 		results = test_network(sess, model, x_test, y_test, cfg)
-		conf_mat = util.analyse_results(y_test, results)
-		util.store_results(conf_mat, os.path.join(model_dir, model_name + "_cm"))
+		conf_mat, sk_fpr, sk_tpr, roc_auc = util.analyse_results(y_test, results)
+		print('[ANN] ROC Area Under Curve: {0:.2f}'.format(roc_auc))
+		plot_roc(sk_fpr, sk_tpr, roc_auc)
+		results_to_save = {'conf_mat': conf_mat, 'train_stats': train_stats, 'roc_auc' : float(roc_auc)}
+		util.store_results(results_to_save, os.path.join(model_dir, model_name + "_cm"))
 
 # Make sure to only run if not being imported
 if __name__ == '__main__':
