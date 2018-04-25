@@ -290,7 +290,9 @@ def main():
         # Test network on our testing data
         results = test_network(sess, model, x_test, y_test, cfg)
 
-        conf_mat = util.analyse_results(y_test, results)
+        # TODO: Tristan to reimplement analyse results to get confusion matrix and roc curve 
+        conf_mat = {}
+        # conf_mat = util.analyse_results(y_test, results)
         util.store_results(conf_mat, os.path.join(model_dir,
                                                   model_name + "_cm"))
 
