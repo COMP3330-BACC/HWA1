@@ -169,7 +169,7 @@ def train_network(sess, x, y, cfg):
 
         # If we're at a save epoch, save!
         if i % save_epoch == 0:
-            model = util.save_model(sess, weights, biases, neurons,
+            model = util.save_model(sess, weights, biases, neurons, train_errors,
                                     os.path.join(model_dir,
                                                  model_name + "_model"))
 
@@ -218,7 +218,7 @@ def train_network(sess, x, y, cfg):
     accuracy = 1 - train_error
 
     # Save model to file
-    model = util.save_model(sess, weights, biases, neurons,
+    model = util.save_model(sess, weights, biases, neurons, train_errors,
                             os.path.join(model_dir, model_name + "_model"))
 
     print('\n[ANN] Training Completed:')
