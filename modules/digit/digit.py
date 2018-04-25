@@ -6,7 +6,9 @@ import time  # time 		-- performance measure
 import csv
 import random
 import string
+import pandas as pd
 from sklearn.svm import SVC
+from sklearn import preprocessing
 
 import sys
 sys.path.insert(0, '../../')
@@ -248,11 +250,7 @@ def test_network(sess, model, x_test, y_test, cfg):
     t_test = time.time()
 
     # Classify test data
-    result = np.round(
-        sess.run(final_layer, feed_dict={
-            x_t: x_test,
-            y_t: y_test
-        }))
+    result = sess.run(final_layer, feed_dict={x_t : x_test, y_t : y_test})
 
     # Average out the test timing
     t_avg_test = (time.time() - t_test) / float(len(y_test))
@@ -261,6 +259,52 @@ def test_network(sess, model, x_test, y_test, cfg):
     print('[ANN]\tAverage time to test: {0:.2f}us'.format(
         1000000 * t_avg_test))
     return result
+
+def plot_confusion_matrix(y1, y2, title='Confusion matrix', cmap=plt.cm.gray_r):
+    y_actual = pd.Series(y1, name='Actual')
+    y_predicted = pd.Series(y2, name='Predicted')
+    df_confusion = pd.crosstab(y_actual, y_predicted, rownames=['Actual'], colnames=['Predicted'], margins=True)
+
+    plt.matshow(df_confusion, cmap=cmap) # imshow
+    #plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(df_confusion.columns))
+    plt.xticks(tick_marks, df_confusion.columns, rotation=45)
+    plt.yticks(tick_marks, df_confusion.index)
+    #plt.tight_layout()
+    plt.ylabel(df_confusion.index.name)
+    plt.xlabel(df_confusion.columns.name)
+    plt.show()
+
+def convert_to_nonbinary(y_test2):
+    y_test3 = []
+    i=0
+    while i<len(y_test2):
+        j=0
+        cont = True
+        while (j<len(y_test2[i])) and (cont == True):
+            if y_test2[i][j] == 1:
+                y_test3.append(j)
+                cont = False
+            j += 1
+        i += 1
+    return y_test3
+
+def convert_to_different_nonbinary(y_in):
+    y_out = []
+    i=0
+    while i<len(y_in):
+        j=0
+        biggest1 = 0
+        biggest2 = 0
+        while (j<10):
+            if y_in[i][j] > biggest1:
+                biggest1 = y_in[i][j]
+                biggest2 = j
+            j += 1
+        y_out.append(biggest2)
+        i += 1
+    return y_out
 
 
 ## Main Program
@@ -291,11 +335,21 @@ def main():
         results = test_network(sess, model, x_test, y_test, cfg)
 
         # TODO: Tristan to reimplement analyse results to get confusion matrix and roc curve 
-        conf_mat = {}
+        conf_mat={}
         # conf_mat = util.analyse_results(y_test, results)
         util.store_results(conf_mat, os.path.join(model_dir,
                                                   model_name + "_cm"))
+        
+        y_test2 = np.array(y_test)       
+        
+        y_test3 = convert_to_nonbinary(y_test2)
+    #    print(y_test3)
 
+        print(results)
+        y_results = convert_to_different_nonbinary(results)
+        print(y_results)
+
+    #    plot_confusion_matrix(y_test3, results)
 
 '''	'''
 # Make sure to only run if not being imported

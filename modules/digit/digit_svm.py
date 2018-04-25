@@ -135,7 +135,8 @@ def train_test_svm_multi_roc_ver(x_train, y_train, x_test, y_test, cfg):
 	n_estimators = 20;
 
 	print('\t[SVM] Training parameters: C={0}, kernel={1}, gamma={2}'.format(C, kernel, gamma))
-	svm = OneVsRestClassifier(BaggingClassifier(SVC(C=C, kernel=kernel, gamma=gamma), max_samples=1.0/n_estimators, n_estimators=n_estimators))
+#	svm = OneVsRestClassifier(BaggingClassifier(SVC(C=C, kernel=kernel, gamma=gamma), max_samples=1.0/n_estimators, n_estimators=n_estimators))
+	svm = OneVsRestClassifier(SVC(C=C, kernel=kernel, gamma=gamma))
 	t_start=time.time()
 	y_output = svm.fit(np.array(x_train), np.ravel(y_train)).decision_function(x_test)
 
@@ -201,10 +202,11 @@ def main():
 	model_dir = cfg['svm']['model_dir']
 
 #	svm = train_svm_multi(x_train, y_train, cfg)
-#	y_test2 = test_svm(svm, x_test)
-#	plot_confusion_matrix(y_test3, y_test2)
+	svm = train_svm(x_train, y_train, cfg)
+	y_test2 = test_svm(svm, x_test)
+	plot_confusion_matrix(y_test3, y_test2)
 
-	train_test_svm_multi_roc_ver(x_train, y_train, x_test, y_test3, cfg)
+#	train_test_svm_multi_roc_ver(x_train, y_train, x_test, y_test3, cfg)
 	
 
 
