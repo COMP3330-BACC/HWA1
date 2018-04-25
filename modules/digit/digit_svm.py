@@ -135,10 +135,12 @@ def train_test_svm_multi_roc_ver(x_train, y_train, x_test, y_test, cfg):
 	n_estimators = 20;
 
 	print('\t[SVM] Training parameters: C={0}, kernel={1}, gamma={2}'.format(C, kernel, gamma))
-#	svm = OneVsRestClassifier(BaggingClassifier(SVC(C=C, kernel=kernel, gamma=gamma), max_samples=1.0/n_estimators, n_estimators=n_estimators))
-	svm = OneVsRestClassifier(SVC(C=C, kernel=kernel, gamma=gamma))
+	svm = OneVsRestClassifier(BaggingClassifier(SVC(C=C, kernel=kernel, gamma=gamma), max_samples=1.0/n_estimators, n_estimators=n_estimators))
+#	svm = OneVsRestClassifier(SVC(C=C, kernel=kernel, gamma=gamma))
 	t_start=time.time()
 	y_output = svm.fit(np.array(x_train), np.ravel(y_train)).decision_function(x_test)
+
+	#test_svm(svm, x_test)
 
 	t_train = time.time()-t_start
 	print('\t[SVM] Model accuracy: {0:.2f}%, Time to train: {1:.5f}s'.format(100*svm.score(x_train, np.ravel(y_train)), t_train))
@@ -169,7 +171,7 @@ def plot_roc(y1, y2, n_classes):
 	plt.figure()
 	lw=2
 
-	colors = cycle(['aqua', 'darkorange', 'cornflowerblue'])
+	colors = cycle(['aqua', 'darkorange', 'cornflowerblue', 'blue', 'green', 'red', 'yellow', 'black', 'chocolate', 'hotpink'])
 	for i, color in zip(range(n_classes), colors):
 	    plt.plot(fpr[i], tpr[i], color=color, lw=lw,
 	             label='ROC curve of class {0} (area = {1:0.2f})'
@@ -202,11 +204,11 @@ def main():
 	model_dir = cfg['svm']['model_dir']
 
 #	svm = train_svm_multi(x_train, y_train, cfg)
-	svm = train_svm(x_train, y_train, cfg)
-	y_test2 = test_svm(svm, x_test)
-	plot_confusion_matrix(y_test3, y_test2)
+#	svm = train_svm(x_train, y_train, cfg)
+#	y_test2 = test_svm(svm, x_test)
+#	plot_confusion_matrix(y_test3, y_test2)
 
-#	train_test_svm_multi_roc_ver(x_train, y_train, x_test, y_test3, cfg)
+	train_test_svm_multi_roc_ver(x_train, y_train, x_test, y_test3, cfg)
 	
 
 

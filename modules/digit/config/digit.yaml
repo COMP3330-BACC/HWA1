@@ -9,7 +9,7 @@ nn:
   parameters:
     neurons: 10                # Limits of neurons random generation (per layer)
     epochs: 150                 # Limits of epochs random generation (total)
-    learning_rate: 0.2         # Limits of learning rate random gen
+    learning_rate: 0.6         # Limits of learning rate random gen
   error_threshold: 0.01         # Error threshold for stopping model generation
   avg_factor: 5
 svm:

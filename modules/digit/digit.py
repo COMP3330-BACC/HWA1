@@ -7,8 +7,11 @@ import csv
 import random
 import string
 import pandas as pd
+from scipy import interp
 from sklearn.svm import SVC
 from sklearn import preprocessing
+from sklearn.metrics import roc_curve, auc
+from itertools import cycle
 
 import sys
 sys.path.insert(0, '../../')
@@ -119,12 +122,12 @@ def train_network(sess, x, y, cfg):
     final_layer = construct_network(x_, weights, biases, neurons)
 
     # Define error function
-    cost = tf.reduce_mean(
-        tf.losses.mean_squared_error(labels=y_, predictions=final_layer))
+    cost_train = tf.reduce_mean(tf.losses.mean_squared_error(labels=y_, predictions=final_layer))
+    cost_valid = tf.reduce_mean(tf.losses.mean_squared_error(labels=y_, predictions=final_layer))
 
     # Define optimiser and minimise error function task
-    optimiser = tf.train.GradientDescentOptimizer(
-        learning_rate=learning_rate).minimize(cost)
+    optimiser_train = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost_train)
+    optimiser_valid = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost_valid)
 
     # Initialise global variables of the session
     sess.run(tf.global_variables_initializer())
@@ -132,8 +135,9 @@ def train_network(sess, x, y, cfg):
     # Create error logging storage
     train_errors = []
     valid_errors = []
-
+    
     # Setup our continous plot
+    plt.figure()
     plt.title('Error vs Epoch')
     plt.plot(train_errors[:epochs], color='r', label='training')
     plt.plot(valid_errors[:epochs], color='b', label='validation')
@@ -142,8 +146,8 @@ def train_network(sess, x, y, cfg):
     plt.legend()
     plt.grid()
     plt.ion()
-    plt.show()
-
+    #   plt.show()
+    
     # Measure training time
     t_start = time.time()
 
@@ -159,12 +163,12 @@ def train_network(sess, x, y, cfg):
     for i in range(epochs):
         # Run network on training and validation sets
         _, train_error = sess.run(
-            [optimiser, cost], feed_dict={
+            [optimiser_train, cost_train], feed_dict={
                 x_: x_train,
                 y_: y_train
             })
         _, valid_error = sess.run(
-            [optimiser, cost], feed_dict={
+            [optimiser_train, cost_train], feed_dict={
                 x_: x_valid,
                 y_: y_valid
             })
@@ -213,7 +217,7 @@ def train_network(sess, x, y, cfg):
             plt.axis([0, i, 0., 1.])
             plt.draw()
             plt.pause(0.001)
-
+    
     t_elapsed = time.time() - t_start
 
     # Calculate new simple accuracy from final error
@@ -306,6 +310,44 @@ def convert_to_different_nonbinary(y_in):
         i += 1
     return y_out
 
+def plot_roc(y1, y2, n_classes):
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+
+    for i in range(n_classes):
+        fpr[i], tpr[i], _ = roc_curve(y1[:, i], y2[:, i])
+        roc_auc[i] = auc(fpr[i], tpr[i])
+
+    fpr["micro"], tpr["micro"], _ = roc_curve(y1.ravel(), y2.ravel())
+    roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+
+    all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
+    mean_tpr = np.zeros_like(all_fpr)
+    for i in range(n_classes):
+        mean_tpr += interp(all_fpr, fpr[i], tpr[i])
+    mean_tpr /= n_classes
+    fpr["macro"] = all_fpr
+    tpr["macro"] = mean_tpr
+    roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
+
+    fig = plt.figure()
+    lw=2
+
+    colors = cycle(['aqua', 'darkorange', 'cornflowerblue', 'blue', 'green', 'red', 'yellow', 'black', 'chocolate', 'hotpink'])
+    for i, color in zip(range(n_classes), colors):
+        plt.plot(fpr[i], tpr[i], color=color, lw=lw,
+                 label='ROC curve of class {0} (area = {1:0.2f})'
+                 ''.format(i, roc_auc[i]))
+
+    plt.plot([0, 1], [0, 1], 'k--', lw=lw)
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Multi-class receiver operating characteristic')
+    plt.legend(loc="lower right")
+    plt.show()
 
 ## Main Program
 def main():
@@ -340,16 +382,16 @@ def main():
         util.store_results(conf_mat, os.path.join(model_dir,
                                                   model_name + "_cm"))
         
-        y_test2 = np.array(y_test)       
-        
-        y_test3 = convert_to_nonbinary(y_test2)
-    #    print(y_test3)
+     #   y_test2 = np.array(y_test)       
+     #   plot_roc(y_test2, results, 10)
+    #    y_test3 = convert_to_nonbinary(y_test2)
+     #   print(y_test3)
 
-        print(results)
-        y_results = convert_to_different_nonbinary(results)
-        print(y_results)
+     #   print(results)
+     #   y_results = convert_to_different_nonbinary(results)
+     #   print(y_results)
 
-    #    plot_confusion_matrix(y_test3, results)
+      #  plot_confusion_matrix(y_test3, y_results)
 
 '''	'''
 # Make sure to only run if not being imported
